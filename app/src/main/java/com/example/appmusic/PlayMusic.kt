@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import kotlinx.android.synthetic.main.activity_play_music.*
 
 class PlayMusic : AppCompatActivity(), View.OnClickListener {
@@ -33,12 +34,14 @@ class PlayMusic : AppCompatActivity(), View.OnClickListener {
                     music?.pause()
                     pausePosition = music?.currentPosition!!
                     btn_Handle.setImageResource(R.drawable.play)
+                    Toast.makeText(this, "dang pause", Toast.LENGTH_SHORT).show()
 
                 } else {
                     music?.seekTo(pausePosition)
                     music?.start()
 
                     btn_Handle.setImageResource(R.drawable.pause)
+                    Toast.makeText(this, "dang play", Toast.LENGTH_SHORT).show()
                 }
             }
         }
