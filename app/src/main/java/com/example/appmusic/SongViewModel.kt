@@ -1,12 +1,17 @@
 package com.example.appmusic
 
 import android.content.ContentResolver
+import android.os.CountDownTimer
 import android.provider.MediaStore
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import java.util.logging.Handler
 
 class SongViewModel: ViewModel() {
     var listSong: MutableLiveData<ArrayList<Song>> = MutableLiveData()
+    var songLength: MutableLiveData<Int> = MutableLiveData()
+    lateinit var countDownTimer: CountDownTimer
+
     fun getAllSong(contentResolver: ContentResolver){
         var arrayList = ArrayList<Song>()
         val contentResolver = contentResolver
@@ -25,5 +30,18 @@ class SongViewModel: ViewModel() {
             } while (songCursor.moveToNext())
         }
         listSong.value = arrayList
+    }
+    fun runASong(songLen : Int, positionCurrent: Int){
+        this.songLength.value = 0
+        var count = 0
+        countDownTimer = object : CountDownTimer((songLen-positionCurrent)*1000L,1000L){
+            override fun onFinish() {
+                songLength.value = songLen
+            }
+            override fun onTick(p0: Long) {
+                songLength.value = ++count + positionCurrent
+            }
+
+        }.start()
     }
 }

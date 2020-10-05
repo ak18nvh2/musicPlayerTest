@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.MediaStore
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -20,6 +19,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity 
     private lateinit var mSongAdapter: SongAdapter
     private val PERMISSION_REQUEST = 1
     private var mSongViewModel = SongViewModel()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -41,6 +41,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity 
             getMusic()
         }
     }
+
+
 
     private fun registerLiveDataListener() {
         val songObserver = Observer<ArrayList<Song>> { newListContact ->
@@ -77,12 +79,14 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity 
 
     override fun onSongNameClick(song: Song) {
 
-        var intent = Intent(this, PlayMusic::class.java)
+        var intent = Intent(this, PlayMusicActivity::class.java)
         var bundle = Bundle()
         stopService(Intent(this, MyService::class.java))
         bundle.putSerializable("SONG", song)
         intent.putExtras(bundle)
         startActivity(intent)
     }
+
+
 
 }

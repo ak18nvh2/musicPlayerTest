@@ -33,6 +33,7 @@ class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecycler
         holder.songName.setOnClickListener(){
             iRecyclerViewWithActivity.onSongNameClick(listSong[position])
         }
+
     }
     interface IRecyclerViewWithActivity{
         fun onSongNameClick(song: Song)
