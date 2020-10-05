@@ -32,7 +32,7 @@ class MyService : Service() {
         val pendingIntent = PendingIntent.getActivity(
             this,
             0, notificationIntent, 0
-        )
+        )d
         var intent = intent
         var bundle = intent?.extras
         if (bundle != null) {

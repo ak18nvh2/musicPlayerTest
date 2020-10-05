@@ -125,34 +125,6 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
         }
     }
 
-//    private fun runMusic(songLength: Int){
-////        this.song.songLength = songLength
-////        var countTime = 0
-////        object : CountDownTimer(songLength.toLong(),1){
-////            override fun onFinish() {
-////                tv_CurrentPosition.text = tv_SongLength.text
-////            }
-////
-////            override fun onTick(p0: Long) {
-////                countTime++
-////                var sec = countTime % 60
-////                var min = countTime / 60
-////                var secStringCur = if (sec < 10) {
-////                    "0$sec"
-////                } else {
-////                    "$sec"
-////                }
-////                var minStringCur = if (min < 10) {
-////                    "0$min:"
-////                } else {
-////                    "$min:"
-////                }
-////                tv_CurrentPosition.text = p0.toString()
-////            }
-////
-////        }.start()
-////    }
-
     private fun playMusic(countHandle: Int, position: Int) {
         var serviceIntent = Intent(this, MyService::class.java)
         var bundleService = Bundle()
@@ -175,7 +147,7 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
                     Toast.makeText(this, "dang pause", Toast.LENGTH_SHORT).show()
 
                 } else {
-                    playMusic(mCountHandleClick,-1)
+                    playMusic(mCountHandleClick,2)
                     btn_Handle.setImageResource(R.drawable.pause)
                     Toast.makeText(this, "dang play", Toast.LENGTH_SHORT).show()
                 }
