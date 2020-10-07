@@ -1,14 +1,13 @@
 package com.example.appmusic
 
-import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.SeekBar
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +22,7 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
     private lateinit var mIntentFilter: IntentFilter
     private var mSongViewModel = SongViewModel()
     private var mCountHandleSeekBar = 0
+
     companion object {
         const val mBroadcastAction = "SEND_SONG_SIZE"
     }
@@ -30,49 +30,49 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_play_music)
+
+        init()
+        registerLiveDataListener()
+        playNewMusic()
+
+
+//        sb_SongHandler.setOnSeekBarChangeListener(@SuppressLint("AppCompatCustomView")
+//        object : SeekBar.OnSeekBarChangeListener {
+//
+//            override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
+//
+//                if (mCountHandleSeekBar == 0) {
+//                    mCountHandleSeekBar++
+//                } else {
+//                    playNewMusic(i)
+//                    Toast.makeText(applicationContext, "asdf", Toast.LENGTH_SHORT).show()
+//                    mSongViewModel.runASong(song.songLength, i,true)
+//                }
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar) {
+//            }
+//
+//            override fun onStopTrackingTouch(seekBar: SeekBar) {
+//            }
+//        })
+    }
+
+    private fun init() {
         var intent = intent
         var bundle = intent.extras
         if (bundle != null) {
             song = bundle.getSerializable("SONG") as Song
         }
-        btn_Handle.setOnClickListener(this)
-        playMusic(0,0)
         mIntentFilter = IntentFilter()
         mIntentFilter.addAction(mBroadcastAction)
-        registerLiveDataListener()
-
-        sb_SongHandler.setOnSeekBarChangeListener(@SuppressLint("AppCompatCustomView")
-        object : SeekBar.OnSeekBarChangeListener {
-
-            override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
-
-                if (mCountHandleSeekBar == 0 ) {
-                    mCountHandleSeekBar++
-                } else {
-                    stopServiceSong()
-                    playMusic(mCountHandleClick,i)
-                    Toast.makeText(applicationContext, "asdf", Toast.LENGTH_SHORT).show()
-                    mSongViewModel.runASong(song.songLength, i)
-                }
-
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar) {
-
-            }
-
-            override fun onStopTrackingTouch(seekBar: SeekBar) {
-
-            }
-        })
+        btn_Handle.setOnClickListener(this)
     }
-    private fun stopServiceSong() {
 
-    }
     private fun registerLiveDataListener() {
-        val songObserver = Observer<Int> { songLength ->
-            var sec = songLength % 60
-            var min = songLength / 60
+        val songObserver = Observer<Int> { currentLength ->
+            var sec = currentLength % 60
+            var min = currentLength / 60
             var secStringCur = if (sec < 10) {
                 "0$sec"
             } else {
@@ -85,7 +85,7 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
             }
             tv_CurrentPosition.text = minStringCur + secStringCur
         }
-        mSongViewModel.songLength.observe(this, songObserver)
+        mSongViewModel.currentLength.observe(this, songObserver)
 
     }
 
@@ -103,56 +103,98 @@ class PlayMusicActivity : AppCompatActivity(), View.OnClickListener {
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onReceive(context: Context?, intent: Intent) {
             if (intent.action == mBroadcastAction) {
-                val sec = intent.getIntExtra("SECONDS", 0)
-                val min = intent.getIntExtra("MINUTES", 0)
-                var secString = if (sec < 10) {
-                    "0$sec"
-                } else {
-                    "$sec"
+                when (intent.getIntExtra("STATUS", 0)) {
+                    0 -> {
+                        val sec = intent.getIntExtra("SECONDS", 0)
+                        val min = intent.getIntExtra("MINUTES", 0)
+                        val secString = if (sec < 10) {
+                            "0$sec"
+                        } else {
+                            "$sec"
+                        }
+                        val minString = if (min < 10) {
+                            "0$min:"
+                        } else {
+                            "$min:"
+                        }
+                        song.songLength = min * 60 + sec
+                        tv_SongLength.text = minString + secString
+                        sb_SongHandler.max = song.songLength
+                        sb_SongHandler.min = 0
+                        mSongViewModel.runASong(song.songLength,0,true)
+                    }
+                    1 -> {
+                        val sec = intent.getIntExtra("SECONDS", 0)
+                        val min = intent.getIntExtra("MINUTES", 0)
+                        val secString = if (sec < 10) {
+                            "0$sec"
+                        } else {
+                            "$sec"
+                        }
+                        val minString = if (min < 10) {
+                            "0$min:"
+                        } else {
+                            "$min:"
+                        }
+                        song.pausePosition = min * 60 + sec
+                        mSongViewModel.runASong(song.songLength, song.pausePosition, false)
+                    }
+                    else -> {
+                        mSongViewModel.runASong(song.songLength, song.pausePosition, true)
+                    }
                 }
-                var minString = if (min < 10) {
-                    "0$min:"
-                } else {
-                    "$min:"
-                }
-                song.songLength = min * 60 + sec
-                tv_SongLength.text = minString + secString
-                sb_SongHandler.max = min * 60 + sec
-                sb_SongHandler.min = 0
-                mSongViewModel.runASong(min * 60 + sec,0)
-
             }
         }
     }
 
-    private fun playMusic(countHandle: Int, position: Int) {
-        var serviceIntent = Intent(this, MyService::class.java)
-        var bundleService = Bundle()
-        bundleService.putInt("COUNT_HANDLE", countHandle)
-        bundleService.putInt("POSITION_CURRENT",position)
+    private fun playNewMusic() {
+        val serviceIntent = Intent(this, MusicService::class.java)
+        val bundleService = Bundle()
         bundleService.putSerializable("SONG", song)
         serviceIntent.putExtras(bundleService)
         ContextCompat.startForegroundService(this, serviceIntent)
-        // startService(serviceIntent)
-
     }
-
+    private fun pauseMusic(){
+        Log.d("musiccccccc","vao ham pause roi")
+        val serviceIntent = Intent(this, MusicService::class.java)
+        serviceIntent.putExtra("STT", 1)// 1 la pause
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+    private fun runAgain(){
+        val serviceIntent = Intent(this, MusicService::class.java)
+        serviceIntent.putExtra("STT", 2)// 2 la play again
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
     override fun onClick(p0: View?) {
         when (p0) {
             btn_Handle -> {
                 mCountHandleClick++
                 if (mCountHandleClick % 2 == 1) {
-                    playMusic(mCountHandleClick,-1)
-                    btn_Handle.setImageResource(R.drawable.play)
-                    Toast.makeText(this, "dang pause", Toast.LENGTH_SHORT).show()
-
+                    Log.d("musiccccccc","vao ham click roi")
+                    pauseMusic()
                 } else {
-                    playMusic(mCountHandleClick,2)
-                    btn_Handle.setImageResource(R.drawable.pause)
-                    Toast.makeText(this, "dang play", Toast.LENGTH_SHORT).show()
+                    runAgain()
                 }
             }
         }
     }
+
+//    override fun onClick(p0: View?) {
+//        when (p0) {
+//            btn_Handle -> {
+//                mCountHandleClick++
+//                if (mCountHandleClick % 2 == 1) {
+//                    playNewMusic( -1)
+//                    btn_Handle.setImageResource(R.drawable.play)
+//                    Toast.makeText(this, "dang pause", Toast.LENGTH_SHORT).show()
+//                } else {
+//                    playNewMusic( -2)
+//                    btn_Handle.setImageResource(R.drawable.pause)
+//                    mSongViewModel.runASong(song.songLength, song.pausePosition,true)
+//                    Toast.makeText(this, "dang play", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+//        }
+//    }
 
 }

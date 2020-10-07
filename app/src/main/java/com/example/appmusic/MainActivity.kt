@@ -81,7 +81,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity 
 
         var intent = Intent(this, PlayMusicActivity::class.java)
         var bundle = Bundle()
-        stopService(Intent(this, MyService::class.java))
+        stopService(Intent(this, MusicService::class.java))
         bundle.putSerializable("SONG", song)
         intent.putExtras(bundle)
         startActivity(intent)
