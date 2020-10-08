@@ -1,44 +1,24 @@
 package com.example.appmusic
 
-import android.content.ContentResolver
+
 import android.os.CountDownTimer
-import android.provider.MediaStore
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
 class SongViewModel : ViewModel() {
-    var listSong: MutableLiveData<ArrayList<Song>> = MutableLiveData()
+
+    var songName: MutableLiveData<String> = MutableLiveData()
     var currentLength: MutableLiveData<Int> = MutableLiveData()
     var isPlaying = false
     lateinit var countDownTimer: CountDownTimer
 
-    fun getAllSong(contentResolver: ContentResolver) {
-        var arrayList = ArrayList<Song>()
-        val contentResolver = contentResolver
-        val songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val songCursor = contentResolver.query(songUri, null, null, null, null)
-        if (songCursor != null && songCursor.moveToFirst()) {
-            var songName = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
-            var songLocation = songCursor.getColumnIndex(MediaStore.Audio.Media.DATA)
-            do {
-                var currentName = songCursor.getString(songName)
-                var currentLocation = songCursor.getString(songLocation)
-                var song = Song()
-                song.songLocation = currentLocation
-                song.songName = currentName
-                arrayList.add(song)
-            } while (songCursor.moveToNext())
-        }
-        listSong.value = arrayList
-    }
-
-    fun runASong(songLen: Int, positionCurrent: Int, isPlay: Boolean) {
+    fun runASong(songLen: Int, positionCurrent: Int, isPlay: Boolean,songName: String) {
+        this.songName.value = songName
         if (isPlay) {
             if (isPlaying) {
                 countDownTimer.cancel()
                 isPlaying = false
             }
-            this.currentLength.value = positionCurrent
             var count = 0
             countDownTimer =
                 object : CountDownTimer((songLen - positionCurrent) * 1000L, 1000L) {
@@ -51,7 +31,9 @@ class SongViewModel : ViewModel() {
                 }.start()
             isPlaying = true
         } else {
+            currentLength.value = positionCurrent
             if (isPlaying) {
+                isPlaying = false
                 countDownTimer.cancel()
             }
         }

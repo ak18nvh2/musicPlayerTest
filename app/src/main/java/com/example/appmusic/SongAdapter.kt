@@ -4,7 +4,6 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -16,7 +15,6 @@ class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecycler
     }
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val songName = itemView.findViewById<TextView>(R.id.tv_SongName)
-        val songLocation = itemView.findViewById<TextView>(R.id.tv_SongLocation)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -28,14 +26,14 @@ class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecycler
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.songLocation.text = listSong[position].songLocation
+
         holder.songName.text = listSong[position].songName
-        holder.songName.setOnClickListener(){
-            iRecyclerViewWithActivity.onSongNameClick(listSong[position])
+        holder.itemView.setOnClickListener(){
+            iRecyclerViewWithActivity.onSongNameClick(listSong[position], position)
         }
 
     }
     interface IRecyclerViewWithActivity{
-        fun onSongNameClick(song: Song)
+        fun onSongNameClick(song: Song, pos: Int)
     }
 }
