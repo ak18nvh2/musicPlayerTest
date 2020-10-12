@@ -26,7 +26,7 @@ class SongViewModel : ViewModel() {
                         currentLength.value = songLen
                     }
                     override fun onTick(p0: Long) {
-                        currentLength.value = ++count + positionCurrent
+                        currentLength.value = count++ + positionCurrent
                     }
                 }.start()
             isPlaying = true
