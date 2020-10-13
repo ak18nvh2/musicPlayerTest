@@ -29,17 +29,17 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     private lateinit var mSongAdapter: SongAdapter
     private val PERMISSION_REQUEST = 1
     private var mCountHandleClick = 0
-    private lateinit var song: Song
     private lateinit var mIntentFilter: IntentFilter
     private var mSongViewModel = SongViewModel()
-    private var mCountHandleSeekBar = 0
     private var mIsFirstStart = false
-    private var mSongCurrent = 0
     private var mCountHandleRepeat = 0
-    var arrayList: ArrayList<Song>? = null
     private lateinit var mMusicService: MusicService
     private var mBound = false
     private lateinit var mBinder: MusicService.LocalBinder
+    private var mSong = Song()
+    private var mArrayListSong = ArrayList<Song>()
+    private var mCurrentPositionOfList = 0
+    private var mCurrentPositionOfSong = 0
 
     private val connection = object : ServiceConnection {
         override fun onServiceDisconnected(p0: ComponentName?) {
@@ -69,9 +69,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         btn_NextSong.setOnClickListener(this)
         btn_PreSong.setOnClickListener(this)
         btn_handleRepeat.setOnClickListener(this)
+        sb_SongHandler.min = 0
         setFocus(false)
-        song = Song()
-        arrayList = ArrayList()
         registerLiveDataListener()
         sb_SongHandler.setOnSeekBarChangeListener(@SuppressLint("AppCompatCustomView")
         object : SeekBar.OnSeekBarChangeListener {
@@ -102,6 +101,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         } else {
             getMusic()
         }
+        registerReceiver(mReceiver, mIntentFilter)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -129,6 +129,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         super.onResume()
         registerReceiver(mReceiver, mIntentFilter)
         statService()
+
     }
 
     override fun onStop() {
@@ -152,87 +153,58 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
 
+    @SuppressLint("ResourceAsColor")
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun playFirstTime() {
+        layout_Child.setBackgroundColor(R.color.backgroundChildColor)
+        btn_Handle.setImageResource(R.drawable.pause)
+        sb_SongHandler.max = (mMusicService.music.duration / 60000)*60 + (mMusicService.music.duration/1000)%60
+        setFocus(true)
+        mIsFirstStart = true
+        mCountHandleClick = 0
+        mSongViewModel.runASong(mMusicService.music.duration,
+                                mMusicService.music.currentPosition,
+                               true,
+                                mMusicService.arrayListSong[mMusicService.positionOfList].songName
+                                )
+        Log.d("thongtin",""+mMusicService.music.duration+" "+mMusicService.music.currentPosition+" "+mMusicService.arrayListSong[mMusicService.positionOfList].songName)
+
+    }
+
     private val mReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        @SuppressLint("ResourceAsColor")
         @RequiresApi(Build.VERSION_CODES.O)
         override fun onReceive(context: Context?, intent: Intent) {
             if (intent.action == mBroadcastAction) {
                 when (intent.getStringExtra("STATUS")) {
-                    MusicService.FLAG_FIRST_START -> {
-                        val sec = intent.getIntExtra("SECONDS", 0)
-                        val min = intent.getIntExtra("MINUTES", 0)
-                        val secString = if (sec < 10) {
-                            "0$sec"
-                        } else {
-                            "$sec"
-                        }
-                        val minString = if (min < 10) {
-                            "0$min:"
-                        } else {
-                            "$min:"
-                        }
-                        song.songLength = min * 60 + sec
-                        tv_SongLength.text = minString + secString
-                        sb_SongHandler.max = song.songLength
-                        sb_SongHandler.min = 0
-                        sb_SongHandler.progress = 0
-                        mSongViewModel.runASong(song.songLength, 0, true, song.songName)
-                        btn_Handle.setImageResource(R.drawable.pause)
+                    MusicService.FLAG_FIRST_START, MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
+                        playFirstTime()
                     }
                     MusicService.FLAG_PAUSE -> {
+                        btn_Handle.setImageResource(R.drawable.play)
+                        mCountHandleClick++
                         mSongViewModel.runASong(
-                            song.songLength,
+                            mMusicService.music.duration,
                             mMusicService.songCurrentPosition,
                             false,
-                            song.songName
+                            mMusicService.song.songName
                         )
-                        Log.d("music",mMusicService.songCurrentPosition.toString())
                     }
                     MusicService.FLAG_PLAY_CONTINUE -> {
                         mSongViewModel.runASong(
-                            song.songLength,
+                            mMusicService.music.duration,
                             mMusicService.songCurrentPosition,
                             true,
-                            song.songName
+                            mMusicService.song.songName
                         )
                     }
                     MusicService.FLAG_PLAY_WITH_SEEK_BAR -> {
                         mSongViewModel.runASong(
-                            song.songLength,
+                            mMusicService.music.duration,
                             mMusicService.songCurrentPosition,
                             mMusicService.isPlaying,
-                            song.songName
+                            mMusicService.song.songName
                         )
-                    }
-                    MusicService.FLAG_END -> {
-
-                        when {
-                            mCountHandleRepeat % 3 == 1 -> {
-                                // LAP LAI TAT CA
-                                if (mSongCurrent == arrayList?.size!! - 1) {
-                                    song = arrayList!![0]
-                                    mSongCurrent = 0
-                                } else {
-                                    song = arrayList!![mSongCurrent + 1]
-                                    mSongCurrent++
-                                }
-                                mMusicService.startMusicFirstTime(song)
-                                btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_24)
-                            }
-                            mCountHandleRepeat % 3 == 2 -> {
-                                // lap lai bai dang play
-                                btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_one_24)
-                                mMusicService.startMusicFirstTime(song)
-                            }
-                            else -> {
-                                // het thi k lap
-                                btn_handleRepeat.setImageResource(R.drawable.ic_baseline_no_repeat_24)
-                                mMusicService.pauseMusic()
-                                btn_Handle.setImageResource(R.drawable.play)
-                                mCountHandleClick++
-                            }
-                        }
-                        Log.d("music", mSongCurrent.toString())
-
                     }
                 }
             }
@@ -247,13 +219,11 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                 if (mIsFirstStart) {
                     mCountHandleClick++
                     if (mCountHandleClick % 2 == 1) {
-                        Toast.makeText(applicationContext, "vao pau", Toast.LENGTH_SHORT).show()
                         btn_Handle.setImageResource(R.drawable.play)
                         if (mBound) {
                             mMusicService.pauseMusic()
                         }
                     } else {
-                        Toast.makeText(applicationContext, "vao conti", Toast.LENGTH_SHORT).show()
                         btn_Handle.setImageResource(R.drawable.pause)
                         if (mBound) {
                             mMusicService.playMusicContinue()
@@ -263,24 +233,23 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
 
             }
             btn_NextSong -> {
-                if (mSongCurrent == arrayList?.size!! - 1) {
-                    song = arrayList!![0]
-                    mSongCurrent = 0
+                if (mMusicService.positionOfList == mMusicService.arrayListSong.size - 1) {
+                    mMusicService.song = mMusicService.arrayListSong[0]
+                    mMusicService.positionOfList = 0
                 } else {
-                    song = arrayList!![mSongCurrent + 1]
-                    mSongCurrent++
+                    mMusicService.song = mMusicService.arrayListSong[ ++mMusicService.positionOfList ]
                 }
-               mMusicService.startMusicFirstTime(this.song)
+                mMusicService.startMusicFirstTime(mMusicService.song, mMusicService.positionOfList)
             }
             btn_PreSong -> {
-                if (mSongCurrent == 0) {
-                    song = arrayList!![arrayList!!.size - 1]
-                    mSongCurrent = arrayList!!.size - 1
+                if (mMusicService.positionOfList == 0) {
+                    mMusicService.song = mMusicService.arrayListSong[mMusicService.arrayListSong.size - 1]
+                    mMusicService.positionOfList = mMusicService.arrayListSong.size - 1
                 } else {
-                    song = arrayList!![mSongCurrent - 1]
-                    mSongCurrent--
+                    mMusicService.song = mMusicService.arrayListSong[--mMusicService.positionOfList]
+
                 }
-                mMusicService.startMusicFirstTime(this.song)
+                mMusicService.startMusicFirstTime(mMusicService.song, mMusicService.positionOfList)
             }
             btn_handleRepeat -> {
                 mCountHandleRepeat++
@@ -288,14 +257,17 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                     mCountHandleRepeat % 3 == 1 -> {
                         // LAP LAI TAT CA
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_24)
+                        mMusicService.repeatState = MusicService.FLAG_REPEAT_ALL
                     }
                     mCountHandleRepeat % 3 == 2 -> {
                         // lap lai bai dang play
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_one_24)
+                        mMusicService.repeatState = MusicService.FLAG_REPEAT_ONE
                     }
                     else -> {
                         // het thi k lap
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_no_repeat_24)
+                        mMusicService.repeatState = MusicService.FLAG_NO_REPEAT
                     }
                 }
             }
@@ -303,28 +275,25 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     }
 
     private fun registerLiveDataListener() {
-        val songObserver = Observer<Int> { currentLength ->
-            val sec = currentLength % 60
-            val min = currentLength / 60
-            val secStringCur = if (sec < 10) {
-                "0$sec"
-            } else {
-                "$sec"
-            }
-            val minStringCur = if (min < 10) {
-                "0$min:"
-            } else {
-                "$min:"
-            }
-            tv_CurrentPosition.text = minStringCur + secStringCur
-            sb_SongHandler.progress = sec + min*60
+        val songObserver = Observer<String> { currentLength ->
+            tv_CurrentPosition.text = currentLength
         }
+        mSongViewModel.currentLength.observe(this, songObserver)
+
         val songNameObserver = Observer<String> { songName ->
             tv_SongTitle.text = songName
         }
         mSongViewModel.songName.observe(this, songNameObserver)
-        mSongViewModel.currentLength.observe(this, songObserver)
 
+        val songLengthObserver = Observer<String> { songLength ->
+            tv_SongLength.text = songLength
+        }
+        mSongViewModel.songLength.observe(this,songLengthObserver)
+
+        val currentProcessObserver = Observer<Int> { currentProcess ->
+            sb_SongHandler.progress = currentProcess
+        }
+        mSongViewModel.currentProcess.observe(this,currentProcessObserver)
     }
 
     override fun onRequestPermissionsResult(
@@ -360,30 +329,31 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                 val song = Song()
                 song.songLocation = currentLocation
                 song.songName = currentName
-                arrayList?.add(song)
+                mArrayListSong.add(song)
             } while (songCursor.moveToNext())
         }
-        mSongAdapter.setList(arrayList!!)
+        mSongAdapter.setList(mArrayListSong)
     }
 
     @SuppressLint("ResourceAsColor")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onSongNameClick(song: Song, position: Int) {
-        this.song = song
-        sb_SongHandler.visibility = View.VISIBLE
-        mSongCurrent = position
-        setFocus(true)
-        mIsFirstStart = true
-        layout_Child.setBackgroundColor(R.color.backgroundChildColor)
-        mMusicService.startMusicFirstTime(song)
-        mCountHandleClick = 0
-        ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
 
+
+        if (mBound) {
+            mMusicService.arrayListSong = mArrayListSong
+            mMusicService.positionOfList = position
+            mMusicService.song = song
+            mMusicService.startMusicFirstTime(song,position)
+        }
+        ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
+
 
     override fun onDestroy() {
         if (!mMusicService.isPlaying) {
             unbindService(connection)
+            mBound = false
         }
         super.onDestroy()
     }
