@@ -23,34 +23,48 @@ class SongViewModel : ViewModel() {
     }
 
     fun runASong(songLen: Int, positionCurrent: Int, isPlay: Boolean, songName: String) {
-        this.songName.value = songName
-        this.songLength.value = changeTimeFromIntToString(songLen)
-        if (isPlay) {
-            if (isPlaying) {
-                countDownTimer.cancel()
-                isPlaying = false
-            }
-            var count = 0
-            countDownTimer =
-                object : CountDownTimer((songLen - positionCurrent).toLong(), 1000L) {
-                    override fun onFinish() {
-                        currentLength.value = changeTimeFromIntToString(songLen)
-                        currentProcess.value = songLen
-                    }
+        if (songLen == positionCurrent) {
+            this.songLength.value = changeTimeFromIntToString(songLen)
+            currentLength.value = changeTimeFromIntToString(songLen)
+            currentProcess.value = songLen
 
-                    override fun onTick(p0: Long) {
-                        currentProcess.value = ++count + positionCurrent
-                        currentLength.value = changeTimeFromIntToString(count*1000 + positionCurrent)
-                    }
-                }.start()
-            isPlaying = true
         } else {
-            currentLength.value = changeTimeFromIntToString(positionCurrent)
-            currentProcess.value = positionCurrent
-            if (isPlaying) {
-                isPlaying = false
-                countDownTimer.cancel()
+            this.songName.value = songName
+            this.songLength.value = changeTimeFromIntToString(songLen)
+            if (isPlay) {
+                if (isPlaying) {
+                    countDownTimer.cancel()
+                    isPlaying = false
+                }
+                var count = 0
+                isPlaying = true
+                countDownTimer =
+                    object : CountDownTimer((songLen - positionCurrent*1000).toLong(), 1000L) {
+                        override fun onFinish() {
+                            currentLength.value = changeTimeFromIntToString(songLen)
+                            currentProcess.value = songLen
+                        }
+                        override fun onTick(p0: Long) {
+                            currentProcess.value = ++count + positionCurrent
+                            val curLengthString = changeTimeFromIntToString(count*1000 + positionCurrent*1000)
+                            if (curLengthString > changeTimeFromIntToString(songLen)) {
+                                currentLength.value = changeTimeFromIntToString(songLen)
+                            } else {
+                                currentLength.value = curLengthString
+                            }
+
+                        }
+                    }.start()
+
+            } else {
+                currentLength.value = changeTimeFromIntToString(positionCurrent*1000)
+                currentProcess.value = positionCurrent
+                if (isPlaying) {
+                    isPlaying = false
+                    countDownTimer.cancel()
+                }
             }
         }
+
     }
 }

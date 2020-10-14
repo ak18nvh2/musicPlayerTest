@@ -51,7 +51,6 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
             mMusicService = mBinder.getService()
             mBound = true
         }
-
     }
 
     companion object {
@@ -62,6 +61,11 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        init()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun init() {
         mSongAdapter = SongAdapter(this, this)
         mIntentFilter = IntentFilter()
         mIntentFilter.addAction(mBroadcastAction)
@@ -101,7 +105,6 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         } else {
             getMusic()
         }
-        registerReceiver(mReceiver, mIntentFilter)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -156,19 +159,20 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     @SuppressLint("ResourceAsColor")
     @RequiresApi(Build.VERSION_CODES.O)
     private fun playFirstTime() {
+        mIsFirstStart = true
         layout_Child.setBackgroundColor(R.color.backgroundChildColor)
         btn_Handle.setImageResource(R.drawable.pause)
-        sb_SongHandler.max = (mMusicService.music.duration / 60000)*60 + (mMusicService.music.duration/1000)%60
+        sb_SongHandler.max =
+            (mMusicService.music.duration / 60000) * 60 + (mMusicService.music.duration / 1000) % 60
         setFocus(true)
         mIsFirstStart = true
         mCountHandleClick = 0
-        mSongViewModel.runASong(mMusicService.music.duration,
-                                mMusicService.music.currentPosition,
-                               true,
-                                mMusicService.arrayListSong[mMusicService.positionOfList].songName
-                                )
-        Log.d("thongtin",""+mMusicService.music.duration+" "+mMusicService.music.currentPosition+" "+mMusicService.arrayListSong[mMusicService.positionOfList].songName)
-
+        mSongViewModel.runASong(
+            mMusicService.music.duration,
+            mMusicService.music.currentPosition,
+            true,
+            mMusicService.arrayListSong[mMusicService.positionOfList].songName
+        )
     }
 
     private val mReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -181,8 +185,6 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                         playFirstTime()
                     }
                     MusicService.FLAG_PAUSE -> {
-                        btn_Handle.setImageResource(R.drawable.play)
-                        mCountHandleClick++
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
                             mMusicService.songCurrentPosition,
@@ -203,6 +205,17 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                             mMusicService.music.duration,
                             mMusicService.songCurrentPosition,
                             mMusicService.isPlaying,
+                            mMusicService.song.songName
+                        )
+                    }
+                    MusicService.FLAG_NO_REPEAT -> {
+                        mCountHandleClick++
+                        Log.d("TAGGF",mCountHandleClick.toString())
+                        btn_Handle.setImageResource(R.drawable.play)
+                        mSongViewModel.runASong(
+                            mMusicService.music.duration,
+                            mMusicService.music.duration,
+                            false,
                             mMusicService.song.songName
                         )
                     }
@@ -229,6 +242,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                             mMusicService.playMusicContinue()
                         }
                     }
+                    Log.d("TAGG",mCountHandleClick.toString())
                 }
 
             }
@@ -237,13 +251,14 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                     mMusicService.song = mMusicService.arrayListSong[0]
                     mMusicService.positionOfList = 0
                 } else {
-                    mMusicService.song = mMusicService.arrayListSong[ ++mMusicService.positionOfList ]
+                    mMusicService.song = mMusicService.arrayListSong[++mMusicService.positionOfList]
                 }
                 mMusicService.startMusicFirstTime(mMusicService.song, mMusicService.positionOfList)
             }
             btn_PreSong -> {
                 if (mMusicService.positionOfList == 0) {
-                    mMusicService.song = mMusicService.arrayListSong[mMusicService.arrayListSong.size - 1]
+                    mMusicService.song =
+                        mMusicService.arrayListSong[mMusicService.arrayListSong.size - 1]
                     mMusicService.positionOfList = mMusicService.arrayListSong.size - 1
                 } else {
                     mMusicService.song = mMusicService.arrayListSong[--mMusicService.positionOfList]
@@ -288,12 +303,12 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         val songLengthObserver = Observer<String> { songLength ->
             tv_SongLength.text = songLength
         }
-        mSongViewModel.songLength.observe(this,songLengthObserver)
+        mSongViewModel.songLength.observe(this, songLengthObserver)
 
         val currentProcessObserver = Observer<Int> { currentProcess ->
             sb_SongHandler.progress = currentProcess
         }
-        mSongViewModel.currentProcess.observe(this,currentProcessObserver)
+        mSongViewModel.currentProcess.observe(this, currentProcessObserver)
     }
 
     override fun onRequestPermissionsResult(
@@ -338,13 +353,11 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     @SuppressLint("ResourceAsColor")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onSongNameClick(song: Song, position: Int) {
-
-
         if (mBound) {
             mMusicService.arrayListSong = mArrayListSong
             mMusicService.positionOfList = position
             mMusicService.song = song
-            mMusicService.startMusicFirstTime(song,position)
+            mMusicService.startMusicFirstTime(song, position)
         }
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }

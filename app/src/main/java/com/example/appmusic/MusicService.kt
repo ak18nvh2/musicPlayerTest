@@ -21,7 +21,7 @@ class MusicService : Service() {
     private var mPositionOfList = 0
     private var mRepeatState = FLAG_NO_REPEAT
     private var mArrayListSong: ArrayList<Song>? = ArrayList()
-
+    private var mIsEndMusic = false
     var arrayListSong: ArrayList<Song>
         get() = mArrayListSong!!
         set(value) {
@@ -81,9 +81,11 @@ class MusicService : Service() {
         super.onCreate()
         mSong = Song()
         mMusic = MediaPlayer()
+
     }
 
     fun startMusicFirstTime(song: Song, positionOfList: Int) {
+        mIsEndMusic = false
         if (mMusic?.isPlaying!!) {
             mMusic?.stop()
         }
@@ -92,6 +94,31 @@ class MusicService : Service() {
         mNotificationForeground = NotificationForeground(this, mSong?.songName!!)
         startForeground(1, mNotificationForeground?.buildNotification())
         mMusic = MediaPlayer.create(this, Uri.parse(mSong?.songLocation))
+        mMusic?.setOnCompletionListener() {
+            mIsEndMusic = true
+            when (mRepeatState) {
+                FLAG_NO_REPEAT -> {
+                    Thread {
+                        val broadcastIntent = Intent()
+                        broadcastIntent.action = MainActivity.mBroadcastAction
+                        broadcastIntent.putExtra("STATUS", FLAG_NO_REPEAT)
+                        sendBroadcast(broadcastIntent)
+                    }.start()
+                }
+                FLAG_REPEAT_ONE -> {
+                    playMusicContinue()
+                }
+                FLAG_REPEAT_ALL -> {
+                    if (mPositionOfList + 1 == mArrayListSong?.size) {
+                        mPositionOfList = 0
+                    } else {
+                        mPositionOfList++
+                    }
+                    mSong = mArrayListSong!![mPositionOfList]
+                    startMusicFirstTime(mSong!!,mPositionOfList)
+                }
+            }
+        }
         mMusic?.start()
         mIsPlaying = true
         Thread {
@@ -101,7 +128,6 @@ class MusicService : Service() {
             sendBroadcast(broadcastIntent)
         }.start()
     }
-
     fun pauseMusic() {
         mMusic?.pause()
         mSongCurrentPosition = mMusic?.currentPosition!!
@@ -115,7 +141,9 @@ class MusicService : Service() {
     }
 
     fun playMusicContinue() {
-        if (mSongCurrentPosition == mMusic?.duration) {
+        mIsPlaying = true
+        if (mIsEndMusic) {
+            mIsEndMusic = false
             mSongCurrentPosition = 0
         }
         mMusic?.seekTo(mSongCurrentPosition)
@@ -127,7 +155,6 @@ class MusicService : Service() {
             broadcastIntent.putExtra("STATUS", FLAG_PLAY_CONTINUE)
             sendBroadcast(broadcastIntent)
         }.start()
-
     }
 
     fun playWithSeekBar(pos: Int) {
@@ -153,26 +180,6 @@ class MusicService : Service() {
                 broadcastIntent.putExtra("STATUS", FLAG_PLAY_WHEN_START_APP_AGAIN)
                 sendBroadcast(broadcastIntent)
             }.start()
-        }
-
-        mMusic?.setOnCompletionListener() {
-            when (mRepeatState) {
-                FLAG_NO_REPEAT -> {
-                    pauseMusic()
-                }
-                FLAG_REPEAT_ONE -> {
-                    playMusicContinue()
-                }
-                FLAG_REPEAT_ALL -> {
-                    if (positionOfList + 1 == mArrayListSong?.size) {
-                        positionOfList = 0
-                    } else {
-                        positionOfList++
-                    }
-                    mSong = mArrayListSong!![positionOfList]
-                    startMusicFirstTime(mSong!!,mPositionOfList)
-                }
-            }
         }
         return START_REDELIVER_INTENT
     }
