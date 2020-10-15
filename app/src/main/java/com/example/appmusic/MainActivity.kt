@@ -5,6 +5,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -29,6 +30,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     private lateinit var mSongAdapter: SongAdapter
     private val PERMISSION_REQUEST = 1
     private var mCountHandleClick = 0
+    private var mCountRandomSong = 0
     private lateinit var mIntentFilter: IntentFilter
     private var mSongViewModel = SongViewModel()
     private var mIsFirstStart = false
@@ -73,6 +75,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         btn_NextSong.setOnClickListener(this)
         btn_PreSong.setOnClickListener(this)
         btn_handleRepeat.setOnClickListener(this)
+        btn_randomMusic.setOnClickListener(this)
         sb_SongHandler.min = 0
         setFocus(false)
         registerLiveDataListener()
@@ -110,6 +113,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     @RequiresApi(Build.VERSION_CODES.O)
     private fun setFocus(boolean: Boolean) {
         if (!boolean) {
+            btn_randomMusic.visibility = View.GONE
             btn_Handle.visibility = View.GONE
             sb_SongHandler.visibility = View.GONE
             btn_handleRepeat.visibility = View.GONE
@@ -118,10 +122,12 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
             tv_CurrentPosition.visibility = View.GONE
             tv_SongLength.visibility = View.GONE
         } else {
+            tv_SongTitle.setTextColor(Color.WHITE)
             btn_Handle.visibility = View.VISIBLE
             sb_SongHandler.visibility = View.VISIBLE
             btn_handleRepeat.visibility = View.VISIBLE
             btn_NextSong.visibility = View.VISIBLE
+            btn_randomMusic.visibility = View.VISIBLE
             btn_PreSong.visibility = View.VISIBLE
             tv_CurrentPosition.visibility = View.VISIBLE
             tv_SongLength.visibility = View.VISIBLE
@@ -156,17 +162,16 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
 
-    @SuppressLint("ResourceAsColor")
+
     @RequiresApi(Build.VERSION_CODES.O)
     private fun playFirstTime() {
         mIsFirstStart = true
-        layout_Child.setBackgroundColor(R.color.backgroundChildColor)
+        layout_Child.setBackgroundColor(Color.rgb(255, 102, 153))
         btn_Handle.setImageResource(R.drawable.pause)
+        mCountHandleClick = 0
         sb_SongHandler.max =
             (mMusicService.music.duration / 60000) * 60 + (mMusicService.music.duration / 1000) % 60
         setFocus(true)
-        mIsFirstStart = true
-        mCountHandleClick = 0
         mSongViewModel.runASong(
             mMusicService.music.duration,
             mMusicService.music.currentPosition,
@@ -181,7 +186,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         override fun onReceive(context: Context?, intent: Intent) {
             if (intent.action == mBroadcastAction) {
                 when (intent.getStringExtra("STATUS")) {
-                    MusicService.FLAG_FIRST_START, MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
+                    MusicService.FLAG_FIRST_START -> {
                         playFirstTime()
                     }
                     MusicService.FLAG_PAUSE -> {
@@ -210,7 +215,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                     }
                     MusicService.FLAG_NO_REPEAT -> {
                         mCountHandleClick++
-                        Log.d("TAGGF",mCountHandleClick.toString())
+                        Log.d("TAGGF", mCountHandleClick.toString())
                         btn_Handle.setImageResource(R.drawable.play)
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
@@ -218,6 +223,45 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                             false,
                             mMusicService.song.songName
                         )
+                    }
+                    MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
+                        Log.d(
+                            "AGAIN",
+                            "${mMusicService.music.currentPosition} ${mMusicService.music.duration}"
+                        )
+                        mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
+                        mSongViewModel.runASong(
+                            mMusicService.music.duration,
+                            mMusicService.music.currentPosition / 1000,
+                            true,
+                            mMusicService.song.songName
+                        )
+                        setFocus(true)
+                        mIsFirstStart = true
+                        layout_Child.setBackgroundColor(Color.rgb(255, 102, 153))
+                        if (mMusicService.isPlaying) {
+                            btn_Handle.setImageResource(R.drawable.pause)
+                        } else {
+                            mCountHandleClick = 1
+                            btn_Handle.setImageResource(R.drawable.play)
+                        }
+                        mCountHandleClick = 0
+                        sb_SongHandler.max =
+                            (mMusicService.music.duration / 60000) * 60 + (mMusicService.music.duration / 1000) % 60
+                        if (mMusicService.randomState == MusicService.FLAG_RANDOM_MUSIC) {
+                            btn_randomMusic.setImageResource(R.drawable.shuffle2)
+                            mCountRandomSong++
+                        }
+                        if (mMusicService.repeatState == MusicService.FLAG_REPEAT_ONE) {
+                            btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_one_24)
+                            mCountHandleRepeat = 2
+                        } else if (mMusicService.repeatState == MusicService.FLAG_REPEAT_ALL) {
+                            btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_24)
+                            mCountHandleRepeat = 1
+                        }
+                    }
+                    MusicService.FLAG_CHANGE_SONG -> {
+                        mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
                     }
                 }
             }
@@ -242,7 +286,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                             mMusicService.playMusicContinue()
                         }
                     }
-                    Log.d("TAGG",mCountHandleClick.toString())
+                    Log.d("TAGG", mCountHandleClick.toString())
                 }
 
             }
@@ -284,6 +328,16 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_no_repeat_24)
                         mMusicService.repeatState = MusicService.FLAG_NO_REPEAT
                     }
+                }
+            }
+            btn_randomMusic -> {
+                mCountRandomSong++
+                if (mCountRandomSong % 2 == 0) {
+                    mMusicService.randomState = MusicService.FLAG_NO_RANDOM_MUSIC
+                    btn_randomMusic.setImageResource(R.drawable.shuffle)
+                } else {
+                    mMusicService.randomState = MusicService.FLAG_RANDOM_MUSIC
+                    btn_randomMusic.setImageResource(R.drawable.shuffle2)
                 }
             }
         }
@@ -359,14 +413,16 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
             mMusicService.song = song
             mMusicService.startMusicFirstTime(song, position)
         }
-        ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
 
 
     override fun onDestroy() {
         if (!mMusicService.isPlaying) {
-            unbindService(connection)
-            mBound = false
+            if (mBound) {
+                unbindService(connection)
+                mBound = false
+            }
+            stopService(Intent(applicationContext,MusicService::class.java))
         }
         super.onDestroy()
     }

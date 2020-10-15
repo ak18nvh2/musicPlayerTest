@@ -6,70 +6,79 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
-import android.util.Log
-import android.widget.Toast
-import java.util.jar.Manifest
+import kotlin.random.Random
 
 
 class MusicService : Service() {
+    companion object {
+        const val FLAG_FIRST_START = "fst"
+        const val FLAG_PAUSE = "pause"
+        const val FLAG_PLAY_CONTINUE = "play_continue"
+        const val FLAG_PLAY_WITH_SEEK_BAR = "play_with_seek_bar"
+        const val FLAG_PLAY_WHEN_START_APP_AGAIN = "play_when_start_app_again"
+        const val FLAG_NO_REPEAT = "no_repeat"
+        const val FLAG_REPEAT_ALL = "repeat_all"
+        const val FLAG_REPEAT_ONE = "repeat_one"
+        const val FLAG_RANDOM_MUSIC = "random_music"
+        const val FLAG_NO_RANDOM_MUSIC = "no_random_music"
+        const val FLAG_CHANGE_SONG = "flag_change_song"
+    }
+
     private var mSong: Song? = null
-    private var mMusic: MediaPlayer? = null
-    private var mNotificationForeground: NotificationForeground? = null
-    private val binder = LocalBinder()
-    private var mIsPlaying = false
-    private var mSongCurrentPosition = 0
-    private var mPositionOfList = 0
-    private var mRepeatState = FLAG_NO_REPEAT
-    private var mArrayListSong: ArrayList<Song>? = ArrayList()
-    private var mIsEndMusic = false
-    var arrayListSong: ArrayList<Song>
-        get() = mArrayListSong!!
-        set(value) {
-            mArrayListSong = value
-        }
-
-    val music: MediaPlayer
-        get() = mMusic!!
-
-    var positionOfList: Int
-        set(value) {
-            mPositionOfList = value
-        }
-        get() = mPositionOfList
-
-    var repeatState: String
-        get() = mRepeatState
-        set(value) {
-            mRepeatState = value
-        }
-
     var song: Song
         get() = mSong!!
         set(value) {
             mSong = value
         }
 
+    private var mMusic: MediaPlayer? = null
+    val music: MediaPlayer
+        get() = mMusic!!
+
+    private var mNotificationForeground: NotificationForeground? = null
+    private val binder = LocalBinder()
+
+    private var mIsPlaying = false
+    val isPlaying: Boolean
+        get() = mIsPlaying
+
+    private var mSongCurrentPosition = 0
     val songCurrentPosition: Int
         get() = (mSongCurrentPosition / 60000) * 60 + (mSongCurrentPosition / 1000) % 60
 
-    val isPlaying: Boolean
-        get() = mIsPlaying
+    private var mPositionOfList = 0
+    var positionOfList: Int
+        set(value) {
+            mPositionOfList = value
+        }
+        get() = mPositionOfList
+
+    private var mRepeatState = FLAG_NO_REPEAT
+    var repeatState: String
+        get() = mRepeatState
+        set(value) {
+            mRepeatState = value
+        }
+
+    private var mRandomState = FLAG_NO_RANDOM_MUSIC
+    var randomState: String
+        get() = mRandomState
+        set(value) {
+            mRandomState = value
+        }
+
+    private var mArrayListSong: ArrayList<Song>? = ArrayList()
+    var arrayListSong: ArrayList<Song>
+        get() = mArrayListSong!!
+        set(value) {
+            mArrayListSong = value
+        }
+
+    private var mIsEndMusic = false
 
 
     inner class LocalBinder : Binder() {
         fun getService(): MusicService = this@MusicService
-    }
-
-    companion object {
-        const val FLAG_FIRST_START = "fst"
-        const val FLAG_PAUSE = "pause"
-        const val FLAG_PLAY_CONTINUE = "play_continue"
-        const val FLAG_END = "end_song"
-        const val FLAG_PLAY_WITH_SEEK_BAR = "play_with_seek_bar"
-        const val FLAG_PLAY_WHEN_START_APP_AGAIN = "play_when_start_app_again"
-        const val FLAG_NO_REPEAT = "no_repeat"
-        const val FLAG_REPEAT_ALL = "repeat_all"
-        const val FLAG_REPEAT_ONE = "repeat_one"
     }
 
     override fun onBind(p0: Intent?): IBinder? {
@@ -81,7 +90,20 @@ class MusicService : Service() {
         super.onCreate()
         mSong = Song()
         mMusic = MediaPlayer()
+    }
 
+    private fun startNotification() {
+        mNotificationForeground = NotificationForeground(this, mSong?.songName!!)
+        startForeground(1, mNotificationForeground?.buildNotification())
+    }
+
+    private fun sendInformationChangeSong() {
+        Thread {
+            val broadcastIntent = Intent()
+            broadcastIntent.action = MainActivity.mBroadcastAction
+            broadcastIntent.putExtra("STATUS", FLAG_CHANGE_SONG)
+            sendBroadcast(broadcastIntent)
+        }.start()
     }
 
     fun startMusicFirstTime(song: Song, positionOfList: Int) {
@@ -91,8 +113,8 @@ class MusicService : Service() {
         }
         mSong = song
         mPositionOfList = positionOfList
-        mNotificationForeground = NotificationForeground(this, mSong?.songName!!)
-        startForeground(1, mNotificationForeground?.buildNotification())
+        sendInformationChangeSong()
+        startNotification()
         mMusic = MediaPlayer.create(this, Uri.parse(mSong?.songLocation))
         mMusic?.setOnCompletionListener() {
             mIsEndMusic = true
@@ -109,13 +131,18 @@ class MusicService : Service() {
                     playMusicContinue()
                 }
                 FLAG_REPEAT_ALL -> {
-                    if (mPositionOfList + 1 == mArrayListSong?.size) {
-                        mPositionOfList = 0
+                    if (mRandomState == FLAG_NO_RANDOM_MUSIC) {
+                        if (mPositionOfList + 1 == mArrayListSong?.size) {
+                            mPositionOfList = 0
+                        } else {
+                            mPositionOfList++
+                        }
                     } else {
-                        mPositionOfList++
+                        mPositionOfList = Random.nextInt(0, mArrayListSong?.size!! - 1)
                     }
                     mSong = mArrayListSong!![mPositionOfList]
-                    startMusicFirstTime(mSong!!,mPositionOfList)
+                    startMusicFirstTime(mSong!!, mPositionOfList)
+                    sendInformationChangeSong()
                 }
             }
         }
@@ -128,10 +155,12 @@ class MusicService : Service() {
             sendBroadcast(broadcastIntent)
         }.start()
     }
+
     fun pauseMusic() {
         mMusic?.pause()
         mSongCurrentPosition = mMusic?.currentPosition!!
         mIsPlaying = false
+        stopForeground(true)
         Thread {
             val broadcastIntent = Intent()
             broadcastIntent.action = MainActivity.mBroadcastAction
@@ -141,6 +170,7 @@ class MusicService : Service() {
     }
 
     fun playMusicContinue() {
+        startNotification()
         mIsPlaying = true
         if (mIsEndMusic) {
             mIsEndMusic = false
@@ -173,7 +203,6 @@ class MusicService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (mIsPlaying) {
-            mSongCurrentPosition = mMusic?.currentPosition!!
             Thread {
                 val broadcastIntent = Intent()
                 broadcastIntent.action = MainActivity.mBroadcastAction
