@@ -2,6 +2,7 @@ package com.example.appmusic
 
 
 import android.os.CountDownTimer
+import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 
@@ -43,6 +44,7 @@ class SongViewModel : ViewModel() {
                         override fun onFinish() {
                             currentLength.value = changeTimeFromIntToString(songLen)
                             currentProcess.value = songLen
+                            Log.d("muusic", songName+currentLength.value)
                         }
                         override fun onTick(p0: Long) {
                             currentProcess.value = ++count + positionCurrent
@@ -52,6 +54,7 @@ class SongViewModel : ViewModel() {
                             } else {
                                 currentLength.value = curLengthString
                             }
+                            Log.d("muusic", songName+currentLength.value+" pos"+positionCurrent)
 
                         }
                     }.start()

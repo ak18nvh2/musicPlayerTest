@@ -146,21 +146,26 @@ class MusicService : Service() {
                 }
             }
         }
-        mMusic?.start()
-        mIsPlaying = true
-        Thread {
-            val broadcastIntent = Intent()
-            broadcastIntent.action = MainActivity.mBroadcastAction
-            broadcastIntent.putExtra("STATUS", FLAG_FIRST_START)
-            sendBroadcast(broadcastIntent)
-        }.start()
+        if (mMusic != null) {
+            mMusic?.seekTo(0)
+            mMusic?.start()
+            mIsPlaying = true
+            Thread {
+                val broadcastIntent = Intent()
+                broadcastIntent.action = MainActivity.mBroadcastAction
+                broadcastIntent.putExtra("STATUS", FLAG_FIRST_START)
+                sendBroadcast(broadcastIntent)
+            }.start()
+        }
     }
-
+    fun stopService() {
+        stopForeground(true)
+    }
     fun pauseMusic() {
         mMusic?.pause()
         mSongCurrentPosition = mMusic?.currentPosition!!
         mIsPlaying = false
-        stopForeground(true)
+
         Thread {
             val broadcastIntent = Intent()
             broadcastIntent.action = MainActivity.mBroadcastAction
@@ -170,7 +175,6 @@ class MusicService : Service() {
     }
 
     fun playMusicContinue() {
-        startNotification()
         mIsPlaying = true
         if (mIsEndMusic) {
             mIsEndMusic = false

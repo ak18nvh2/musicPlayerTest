@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -17,6 +18,7 @@ class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecycler
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val songName: TextView = itemView.findViewById(R.id.tv_SongName)
+        val songAvatar: ImageView = itemView.findViewById(R.id.img_Avatar)
     }
 
     fun setPositionChangeColor(position: Int,nameSongInPosition: String){
@@ -41,6 +43,13 @@ class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecycler
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.songName.text = mListSong[position].songName
+        var bitmap = Utils.songArt(mListSong[position].songLocation)
+        if (bitmap == null) {
+            holder.songAvatar.setImageResource(R.drawable.musicavatar)
+        } else {
+            holder.songAvatar.setImageBitmap(bitmap)
+        }
+
         holder.itemView.setOnClickListener(){
             iRecyclerViewWithActivity.onSongNameClick(mListSong[position], position)
         }

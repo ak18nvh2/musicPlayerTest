@@ -3,16 +3,25 @@
     android:layout_width="match_parent"
     android:layout_height="80dp"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-
+    <ImageView
+        android:layout_marginLeft="20dp"
+        android:id="@+id/img_Avatar"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@drawable/shuffle"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="@id/tv_SongName"
+        app:layout_constraintRight_toLeftOf="@id/tv_SongName"></ImageView>
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:id="@+id/tv_SongName"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toRightOf="@id/img_Avatar"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toTopOf="@id/tv_UnLine"
         android:text="ádljflkasjdlfk"
+        android:layout_marginLeft="20dp"
+        app:layout_constraintRight_toRightOf="parent"
         android:textSize="20dp" />
 
     <TextView

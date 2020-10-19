@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -174,7 +175,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         setFocus(true)
         mSongViewModel.runASong(
             mMusicService.music.duration,
-            mMusicService.music.currentPosition,
+            0,
             true,
             mMusicService.arrayListSong[mMusicService.positionOfList].songName
         )
@@ -419,9 +420,11 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     override fun onDestroy() {
         if (!mMusicService.isPlaying) {
             if (mBound) {
+                mMusicService.stopService()
                 unbindService(connection)
                 mBound = false
             }
+
             stopService(Intent(applicationContext,MusicService::class.java))
         }
         super.onDestroy()
