@@ -5,6 +5,9 @@ import android.os.CountDownTimer
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class SongViewModel : ViewModel() {
 
@@ -12,6 +15,8 @@ class SongViewModel : ViewModel() {
     var currentLength: MutableLiveData<String> = MutableLiveData()
     var songLength: MutableLiveData<String> = MutableLiveData()
     var currentProcess: MutableLiveData<Int> = MutableLiveData()
+    var notification: MutableLiveData<String> = MutableLiveData()
+    var listEpisode: MutableLiveData<List<Episodes>> = MutableLiveData()
     private var isPlaying = false
     lateinit var countDownTimer: CountDownTimer
 
@@ -69,5 +74,27 @@ class SongViewModel : ViewModel() {
             }
         }
 
+    }
+
+    fun getAllEpisodes(callGet: Call<FileJson>) {
+        callGet.enqueue(object: Callback<FileJson> {
+            override fun onFailure(call: Call<FileJson>, t: Throwable) {
+                if (callGet.isCanceled) {
+                    notification.value = "Canceled successful!"
+                } else {
+                    notification.value = "Can't load data, please try again!"
+                }
+            }
+
+            override fun onResponse(call: Call<FileJson>, response: Response<FileJson>) {
+                if (response.isSuccessful) {
+                    listEpisode.value = response.body()?.episodes
+                    notification.value = "Load successful!"
+                } else {
+                    notification.value = "Can't load data, please try again!"
+                }
+            }
+
+        })
     }
 }

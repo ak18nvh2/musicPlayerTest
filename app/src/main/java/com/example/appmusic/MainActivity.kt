@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.content.*
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.net.Uri
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -43,7 +42,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     private var mArrayListSong = ArrayList<Song>()
     private var mCurrentPositionOfList = 0
     private var mCurrentPositionOfSong = 0
-
+    private var mListEpisodes: ArrayList<Episodes>? = null
+    private var checkClear = 0
     private val connection = object : ServiceConnection {
         override fun onServiceDisconnected(p0: ComponentName?) {
             mBound = false
@@ -69,6 +69,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun init() {
+        layout_Child.setBackgroundColor(Color.WHITE)
+        mListEpisodes = ArrayList()
         mSongAdapter = SongAdapter(this, this)
         mIntentFilter = IntentFilter()
         mIntentFilter.addAction(mBroadcastAction)
@@ -77,6 +79,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         btn_PreSong.setOnClickListener(this)
         btn_handleRepeat.setOnClickListener(this)
         btn_randomMusic.setOnClickListener(this)
+        btn_SelectLocalMusic.setOnClickListener(this)
+        btn_SelectOnlineMusic.setOnClickListener(this)
         sb_SongHandler.min = 0
         setFocus(false)
         registerLiveDataListener()
@@ -114,6 +118,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     @RequiresApi(Build.VERSION_CODES.O)
     private fun setFocus(boolean: Boolean) {
         if (!boolean) {
+            tv_SongTitle.setTextColor(Color.BLACK)
             btn_randomMusic.visibility = View.GONE
             btn_Handle.visibility = View.GONE
             sb_SongHandler.visibility = View.GONE
@@ -163,6 +168,12 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
 
+    private fun changeEpisodeToSong(e: Episodes): Song{
+        val song = Song()
+        song.songName = e.name
+        song.songLocation = e.audio_preview_url
+        return song
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun playFirstTime() {
@@ -191,12 +202,18 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                         playFirstTime()
                     }
                     MusicService.FLAG_PAUSE -> {
-                        mSongViewModel.runASong(
-                            mMusicService.music.duration,
-                            mMusicService.songCurrentPosition,
-                            false,
-                            mMusicService.song.songName
-                        )
+                        if (checkClear == 1) {
+                            tv_SongTitle.text = "Chưa phát bài hát nào"
+                            checkClear = 0
+                        } else {
+                            mSongViewModel.runASong(
+                                mMusicService.music.duration,
+                                mMusicService.songCurrentPosition,
+                                false,
+                                mMusicService.song.songName
+                            )
+                        }
+
                     }
                     MusicService.FLAG_PLAY_CONTINUE -> {
                         mSongViewModel.runASong(
@@ -341,9 +358,37 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                     btn_randomMusic.setImageResource(R.drawable.shuffle2)
                 }
             }
+            btn_SelectLocalMusic -> {
+                mMusicService.pauseMusic()
+                setFocus(false)
+                getMusic()
+                layout_Child.setBackgroundColor(Color.WHITE)
+                mSongAdapter.setPositionChangeColor(-1,"")
+                checkClear = 1
+                mMusicService.stopService()
+                btn_SelectLocalMusic.setTextColor(Color.RED)
+                btn_SelectOnlineMusic.setTextColor(Color.WHITE)
+                mMusicService.typeMusic = MusicService.FLAG_LOCAL_MUSIC
+            }
+            btn_SelectOnlineMusic -> {
+                mMusicService.pauseMusic()
+                setFocus(false)
+                layout_Child.setBackgroundColor(Color.WHITE)
+                mSongAdapter.setPositionChangeColor(-1,"")
+                checkClear = 1
+                mMusicService.stopService()
+                btn_SelectOnlineMusic.setTextColor(Color.RED)
+                btn_SelectLocalMusic.setTextColor(Color.WHITE)
+                getMusicOnline()
+                mMusicService.typeMusic = MusicService.FLAG_ONLINE_MUSIC
+            }
         }
     }
 
+    private fun getMusicOnline() {
+        val callGet = RetrofitClient.instance.getContacts()
+        mSongViewModel.getAllEpisodes(callGet)
+    }
     private fun registerLiveDataListener() {
         val songObserver = Observer<String> { currentLength ->
             tv_CurrentPosition.text = currentLength
@@ -364,6 +409,21 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
             sb_SongHandler.progress = currentProcess
         }
         mSongViewModel.currentProcess.observe(this, currentProcessObserver)
+
+        val fJsonObserver = Observer<List<Episodes>> { newListEpisode ->
+            mListEpisodes = newListEpisode as ArrayList<Episodes>
+            mArrayListSong.clear()
+            mListEpisodes?.forEachIndexed { index, episodes ->
+                mArrayListSong.add(changeEpisodeToSong(episodes))
+            }
+            mSongAdapter.setList(mArrayListSong)
+        }
+            mSongViewModel.listEpisode.observe(this, fJsonObserver)
+
+        val notificationObserver = Observer<String> {
+            Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
+        }
+        mSongViewModel.notification.observe(this, notificationObserver)
     }
 
     override fun onRequestPermissionsResult(
@@ -387,6 +447,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     }
 
     private fun getMusic() {
+        mArrayListSong.clear()
         val contentResolver = contentResolver
         val songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val songCursor = contentResolver.query(songUri, null, null, null, null)

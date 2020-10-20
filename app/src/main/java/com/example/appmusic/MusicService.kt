@@ -22,8 +22,16 @@ class MusicService : Service() {
         const val FLAG_RANDOM_MUSIC = "random_music"
         const val FLAG_NO_RANDOM_MUSIC = "no_random_music"
         const val FLAG_CHANGE_SONG = "flag_change_song"
+        const val FLAG_LOCAL_MUSIC = "local_music"
+        const val FLAG_ONLINE_MUSIC = "online_music"
     }
 
+    private var mTypeMusic = FLAG_LOCAL_MUSIC
+    var typeMusic: String
+        get() = mTypeMusic
+        set(value) {
+            mTypeMusic = value
+        }
     private var mSong: Song? = null
     var song: Song
         get() = mSong!!
