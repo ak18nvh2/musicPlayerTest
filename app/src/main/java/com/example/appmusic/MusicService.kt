@@ -6,6 +6,8 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
+import com.example.appmusic.models.Song
+import com.example.appmusic.views.MainActivity
 import kotlin.random.Random
 
 
@@ -24,8 +26,16 @@ class MusicService : Service() {
         const val FLAG_CHANGE_SONG = "flag_change_song"
         const val FLAG_LOCAL_MUSIC = "local_music"
         const val FLAG_ONLINE_MUSIC = "online_music"
+        const val FLAG_CAN_NOT_PLAY_MUSIC = "can't play music"
+        const val FLAG_STATE_ALIVE = "alive"
+        const val FLAG_STATE_DIE = "die"
     }
-
+    private var mState = FLAG_STATE_ALIVE
+    var stateMusic: String
+        get() = mState
+        set(value) {
+            mState = value
+        }
     private var mTypeMusic = FLAG_LOCAL_MUSIC
     var typeMusic: String
         get() = mTypeMusic
@@ -116,13 +126,12 @@ class MusicService : Service() {
 
     fun startMusicFirstTime(song: Song, positionOfList: Int) {
         mIsEndMusic = false
-        if (mMusic?.isPlaying!!) {
+        if (mIsPlaying) {
             mMusic?.stop()
         }
         mSong = song
         mPositionOfList = positionOfList
-        sendInformationChangeSong()
-        startNotification()
+
         mMusic = MediaPlayer.create(this, Uri.parse(mSong?.songLocation))
         mMusic?.setOnCompletionListener() {
             mIsEndMusic = true
@@ -150,7 +159,6 @@ class MusicService : Service() {
                     }
                     mSong = mArrayListSong!![mPositionOfList]
                     startMusicFirstTime(mSong!!, mPositionOfList)
-                    sendInformationChangeSong()
                 }
             }
         }
@@ -158,22 +166,35 @@ class MusicService : Service() {
             mMusic?.seekTo(0)
             mMusic?.start()
             mIsPlaying = true
+            sendInformationChangeSong()
+            startNotification()
+            mState = FLAG_STATE_ALIVE
             Thread {
                 val broadcastIntent = Intent()
                 broadcastIntent.action = MainActivity.mBroadcastAction
                 broadcastIntent.putExtra("STATUS", FLAG_FIRST_START)
                 sendBroadcast(broadcastIntent)
             }.start()
+        } else if (mTypeMusic == FLAG_ONLINE_MUSIC) {
+            mState = FLAG_STATE_DIE
+            Thread {
+                val broadcastIntent = Intent()
+                broadcastIntent.action = MainActivity.mBroadcastAction
+                broadcastIntent.putExtra("STATUS", FLAG_CAN_NOT_PLAY_MUSIC)
+                sendBroadcast(broadcastIntent)
+            }.start()
+            mIsPlaying = false
         }
     }
     fun stopService() {
         stopForeground(true)
     }
     fun pauseMusic() {
-        mMusic?.pause()
-        mSongCurrentPosition = mMusic?.currentPosition!!
-        mIsPlaying = false
-
+        if (mState == FLAG_STATE_ALIVE) {
+            mMusic?.pause()
+            mSongCurrentPosition = mMusic?.currentPosition!!
+            mIsPlaying = false
+        }
         Thread {
             val broadcastIntent = Intent()
             broadcastIntent.action = MainActivity.mBroadcastAction
@@ -183,14 +204,23 @@ class MusicService : Service() {
     }
 
     fun playMusicContinue() {
-        mIsPlaying = true
-        if (mIsEndMusic) {
-            mIsEndMusic = false
-            mSongCurrentPosition = 0
-        }
-        mMusic?.seekTo(mSongCurrentPosition)
-        mMusic?.start()
-        mIsPlaying = true
+       if (mState == FLAG_STATE_ALIVE) {
+           mIsPlaying = true
+           if (mIsEndMusic) {
+               mIsEndMusic = false
+               mSongCurrentPosition = 0
+           }
+           mMusic?.seekTo(mSongCurrentPosition)
+           mMusic?.start()
+           mIsPlaying = true
+       } else {
+           Thread {
+               val broadcastIntent = Intent()
+               broadcastIntent.action = MainActivity.mBroadcastAction
+               broadcastIntent.putExtra("STATUS", FLAG_CAN_NOT_PLAY_MUSIC)
+               sendBroadcast(broadcastIntent)
+           }.start()
+       }
         Thread {
             val broadcastIntent = Intent()
             broadcastIntent.action = MainActivity.mBroadcastAction

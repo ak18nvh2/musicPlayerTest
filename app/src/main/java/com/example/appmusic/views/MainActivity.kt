@@ -1,4 +1,4 @@
-package com.example.appmusic
+package com.example.appmusic.views
 
 
 import android.Manifest
@@ -21,10 +21,18 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.customview.customView
+import com.example.appmusic.*
+import com.example.appmusic.models.Episodes
+import com.example.appmusic.models.Song
+import com.example.appmusic.viewmodels.SongViewModel
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.dialog_processbar.*
 
 
-class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
+class MainActivity : AppCompatActivity(),
+    SongAdapter.IRecyclerViewWithActivity,
     View.OnClickListener {
 
     private lateinit var mSongAdapter: SongAdapter
@@ -44,6 +52,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     private var mCurrentPositionOfSong = 0
     private var mListEpisodes: ArrayList<Episodes>? = null
     private var checkClear = 0
+    private lateinit var dialogProcessLoad: MaterialDialog
     private val connection = object : ServiceConnection {
         override fun onServiceDisconnected(p0: ComponentName?) {
             mBound = false
@@ -69,6 +78,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun init() {
+        dialogProcessLoad = MaterialDialog(this).noAutoDismiss()
+            .customView(R.layout.dialog_processbar)
         layout_Child.setBackgroundColor(Color.WHITE)
         mListEpisodes = ArrayList()
         mSongAdapter = SongAdapter(this, this)
@@ -102,18 +113,9 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         val rvListSong = findViewById<RecyclerView>(R.id.rv_ListSong)
         rvListSong.layoutManager = LinearLayoutManager(this)
         rvListSong.adapter = mSongAdapter
-        val arr = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(this, arr, PERMISSION_REQUEST)
-        } else {
-            getMusic()
-        }
     }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun setFocus(boolean: Boolean) {
@@ -168,12 +170,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
 
-    private fun changeEpisodeToSong(e: Episodes): Song{
-        val song = Song()
-        song.songName = e.name
-        song.songLocation = e.audio_preview_url
-        return song
-    }
+
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun playFirstTime() {
@@ -216,12 +213,17 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
 
                     }
                     MusicService.FLAG_PLAY_CONTINUE -> {
-                        mSongViewModel.runASong(
-                            mMusicService.music.duration,
-                            mMusicService.songCurrentPosition,
-                            true,
-                            mMusicService.song.songName
-                        )
+                        if( mMusicService.stateMusic == MusicService.FLAG_STATE_DIE) {
+                            Toast.makeText(applicationContext, "Can't play, please try agian!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            mSongViewModel.runASong(
+                                mMusicService.music.duration,
+                                mMusicService.songCurrentPosition,
+                                true,
+                                mMusicService.song.songName
+                            )
+                        }
+
                     }
                     MusicService.FLAG_PLAY_WITH_SEEK_BAR -> {
                         mSongViewModel.runASong(
@@ -243,10 +245,7 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                         )
                     }
                     MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
-                        Log.d(
-                            "AGAIN",
-                            "${mMusicService.music.currentPosition} ${mMusicService.music.duration}"
-                        )
+
                         mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
@@ -277,9 +276,25 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                             btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_24)
                             mCountHandleRepeat = 1
                         }
+
+                        if (mMusicService.typeMusic == MusicService.FLAG_ONLINE_MUSIC) {
+                            getMusicOnline()
+                            btn_SelectOnlineMusic.setTextColor(Color.RED)
+                            btn_SelectLocalMusic.setTextColor(Color.WHITE)
+
+                        } else {
+                            getMusic()
+                            btn_SelectOnlineMusic.setTextColor(Color.WHITE)
+                            btn_SelectLocalMusic.setTextColor(Color.RED)
+                        }
                     }
                     MusicService.FLAG_CHANGE_SONG -> {
                         mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
+                    }
+                    MusicService.FLAG_CAN_NOT_PLAY_MUSIC -> {
+                        Toast.makeText(applicationContext, "Can't play, please try again!", Toast.LENGTH_SHORT).show()
+                        btn_Handle.setImageResource(R.drawable.play)
+                        mCountHandleClick++
                     }
                 }
             }
@@ -334,31 +349,38 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                     mCountHandleRepeat % 3 == 1 -> {
                         // LAP LAI TAT CA
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_24)
-                        mMusicService.repeatState = MusicService.FLAG_REPEAT_ALL
+                        mMusicService.repeatState =
+                            MusicService.FLAG_REPEAT_ALL
                     }
                     mCountHandleRepeat % 3 == 2 -> {
                         // lap lai bai dang play
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_repeat_one_24)
-                        mMusicService.repeatState = MusicService.FLAG_REPEAT_ONE
+                        mMusicService.repeatState =
+                            MusicService.FLAG_REPEAT_ONE
                     }
                     else -> {
                         // het thi k lap
                         btn_handleRepeat.setImageResource(R.drawable.ic_baseline_no_repeat_24)
-                        mMusicService.repeatState = MusicService.FLAG_NO_REPEAT
+                        mMusicService.repeatState =
+                            MusicService.FLAG_NO_REPEAT
                     }
                 }
             }
             btn_randomMusic -> {
                 mCountRandomSong++
                 if (mCountRandomSong % 2 == 0) {
-                    mMusicService.randomState = MusicService.FLAG_NO_RANDOM_MUSIC
+                    mMusicService.randomState =
+                        MusicService.FLAG_NO_RANDOM_MUSIC
                     btn_randomMusic.setImageResource(R.drawable.shuffle)
                 } else {
-                    mMusicService.randomState = MusicService.FLAG_RANDOM_MUSIC
+                    mMusicService.randomState =
+                        MusicService.FLAG_RANDOM_MUSIC
                     btn_randomMusic.setImageResource(R.drawable.shuffle2)
                 }
             }
             btn_SelectLocalMusic -> {
+                mArrayListSong.clear()
+                mSongAdapter.setList(mArrayListSong)
                 mMusicService.pauseMusic()
                 setFocus(false)
                 getMusic()
@@ -368,9 +390,13 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                 mMusicService.stopService()
                 btn_SelectLocalMusic.setTextColor(Color.RED)
                 btn_SelectOnlineMusic.setTextColor(Color.WHITE)
-                mMusicService.typeMusic = MusicService.FLAG_LOCAL_MUSIC
+                mMusicService.typeMusic =
+                    MusicService.FLAG_LOCAL_MUSIC
+
             }
             btn_SelectOnlineMusic -> {
+                mArrayListSong.clear()
+                mSongAdapter.setList(mArrayListSong)
                 mMusicService.pauseMusic()
                 setFocus(false)
                 layout_Child.setBackgroundColor(Color.WHITE)
@@ -380,13 +406,22 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                 btn_SelectOnlineMusic.setTextColor(Color.RED)
                 btn_SelectLocalMusic.setTextColor(Color.WHITE)
                 getMusicOnline()
-                mMusicService.typeMusic = MusicService.FLAG_ONLINE_MUSIC
+                mMusicService.typeMusic =
+                    MusicService.FLAG_ONLINE_MUSIC
+
+
             }
         }
     }
 
     private fun getMusicOnline() {
         val callGet = RetrofitClient.instance.getContacts()
+        dialogProcessLoad.setCancelable(false)
+        dialogProcessLoad.btn_CancelUpdate.setOnClickListener() {
+            callGet.cancel()
+            dialogProcessLoad.dismiss()
+        }
+        dialogProcessLoad.show()
         mSongViewModel.getAllEpisodes(callGet)
     }
     private fun registerLiveDataListener() {
@@ -410,17 +445,15 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
         }
         mSongViewModel.currentProcess.observe(this, currentProcessObserver)
 
-        val fJsonObserver = Observer<List<Episodes>> { newListEpisode ->
-            mListEpisodes = newListEpisode as ArrayList<Episodes>
-            mArrayListSong.clear()
-            mListEpisodes?.forEachIndexed { index, episodes ->
-                mArrayListSong.add(changeEpisodeToSong(episodes))
-            }
+        val fJsonObserver = Observer<List<Song>> { newList ->
+
+            mArrayListSong = newList as ArrayList<Song>
             mSongAdapter.setList(mArrayListSong)
         }
-            mSongViewModel.listEpisode.observe(this, fJsonObserver)
+            mSongViewModel.listSong.observe(this, fJsonObserver)
 
         val notificationObserver = Observer<String> {
+            dialogProcessLoad.dismiss()
             Toast.makeText(this, it, Toast.LENGTH_SHORT).show()
         }
         mSongViewModel.notification.observe(this, notificationObserver)
@@ -447,23 +480,34 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
     }
 
     private fun getMusic() {
-        mArrayListSong.clear()
-        val contentResolver = contentResolver
-        val songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val songCursor = contentResolver.query(songUri, null, null, null, null)
-        if (songCursor != null && songCursor.moveToFirst()) {
-            val songName = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
-            val songLocation = songCursor.getColumnIndex(MediaStore.Audio.Media.DATA)
-            do {
-                val currentName = songCursor.getString(songName)
-                val currentLocation = songCursor.getString(songLocation)
-                val song = Song()
-                song.songLocation = currentLocation
-                song.songName = currentName
-                mArrayListSong.add(song)
-            } while (songCursor.moveToNext())
+        val arr = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(this, arr, PERMISSION_REQUEST)
+        } else {
+            mArrayListSong.clear()
+            val contentResolver = contentResolver
+            val songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            val songCursor = contentResolver.query(songUri, null, null, null, null)
+            if (songCursor != null && songCursor.moveToFirst()) {
+                val songName = songCursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+                val songLocation = songCursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+                do {
+                    val currentName = songCursor.getString(songName)
+                    val currentLocation = songCursor.getString(songLocation)
+                    val song = Song()
+                    song.songLocation = currentLocation
+                    song.songName = currentName
+                    mArrayListSong.add(song)
+                } while (songCursor.moveToNext())
+            }
+            mSongAdapter.setList(mArrayListSong)
         }
-        mSongAdapter.setList(mArrayListSong)
+
     }
 
     @SuppressLint("ResourceAsColor")
@@ -486,7 +530,8 @@ class MainActivity : AppCompatActivity(), SongAdapter.IRecyclerViewWithActivity,
                 mBound = false
             }
 
-            stopService(Intent(applicationContext,MusicService::class.java))
+            stopService(Intent(applicationContext,
+                MusicService::class.java))
         }
         super.onDestroy()
     }

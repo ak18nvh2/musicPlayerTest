@@ -37,8 +37,8 @@ dependencies {
     implementation 'com.squareup.retrofit2:retrofit:2.6.2'
     implementation 'com.squareup.retrofit2:converter-gson:2.6.2'
 
-    def matieral_dialogs_version = "3.1.0"
-    implementation "com.afollestad.material-dialogs:core:$matieral_dialogs_version"
+    def material_dialogs_version = "3.1.0"
+    implementation "com.afollestad.material-dialogs:core:$material_dialogs_version"
 
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.3'
     implementation 'com.squareup.okhttp3:logging-interceptor:3.9.0'

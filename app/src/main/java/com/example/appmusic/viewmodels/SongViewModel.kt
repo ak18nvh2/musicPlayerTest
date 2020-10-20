@@ -1,10 +1,13 @@
-package com.example.appmusic
+package com.example.appmusic.viewmodels
 
 
 import android.os.CountDownTimer
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.appmusic.models.Episodes
+import com.example.appmusic.models.FileJson
+import com.example.appmusic.models.Song
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -16,10 +19,16 @@ class SongViewModel : ViewModel() {
     var songLength: MutableLiveData<String> = MutableLiveData()
     var currentProcess: MutableLiveData<Int> = MutableLiveData()
     var notification: MutableLiveData<String> = MutableLiveData()
-    var listEpisode: MutableLiveData<List<Episodes>> = MutableLiveData()
+    var listSong: MutableLiveData<List<Song>> = MutableLiveData()
     private var isPlaying = false
     lateinit var countDownTimer: CountDownTimer
 
+    private fun changeEpisodeToSong(e: Episodes): Song {
+        val song = Song()
+        song.songName = e.name
+        song.songLocation = e.audio_preview_url
+        return song
+    }
     fun changeTimeFromIntToString(time: Int): String {
         val min = time / 60000
         val sec = (time / 1000) % 60
@@ -88,7 +97,12 @@ class SongViewModel : ViewModel() {
 
             override fun onResponse(call: Call<FileJson>, response: Response<FileJson>) {
                 if (response.isSuccessful) {
-                    listEpisode.value = response.body()?.episodes
+                    val mListEpisodes = response.body()?.episodes
+                    var mArrayListSong : ArrayList<Song> = ArrayList()
+                    mListEpisodes?.forEachIndexed { _, episodes ->
+                        mArrayListSong.add(changeEpisodeToSong(episodes))
+                    }
+                    listSong.value = mArrayListSong
                     notification.value = "Load successful!"
                 } else {
                     notification.value = "Can't load data, please try again!"

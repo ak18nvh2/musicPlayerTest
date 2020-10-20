@@ -1,4 +1,4 @@
-package com.example.appmusic
+package com.example.appmusic.utils
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

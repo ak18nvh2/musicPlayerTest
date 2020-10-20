@@ -1,5 +1,7 @@
-package com.example.appmusic
+package com.example.appmusic.models
 
+import com.example.appmusic.models.ExternalUrls
+import com.example.appmusic.models.Images
 import com.google.gson.annotations.SerializedName
 
 data class Show (

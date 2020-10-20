@@ -1,15 +1,15 @@
 package com.example.appmusic
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.example.appmusic.models.Song
+import com.example.appmusic.utils.Utils
 
 class SongAdapter(var mContext: Context,var iRecyclerViewWithActivity: IRecyclerViewWithActivity): RecyclerView.Adapter<SongAdapter.ViewHolder>() {
     private var mListSong = ArrayList<Song>()
