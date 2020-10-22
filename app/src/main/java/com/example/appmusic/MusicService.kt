@@ -1,11 +1,18 @@
 package com.example.appmusic
 
 import android.app.*
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Binder
+import android.os.Build
 import android.os.IBinder
+import android.util.Log
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import com.example.appmusic.models.Song
 import com.example.appmusic.views.MainActivity
 import kotlin.random.Random
@@ -29,7 +36,12 @@ class MusicService : Service() {
         const val FLAG_CAN_NOT_PLAY_MUSIC = "can't play music"
         const val FLAG_STATE_ALIVE = "alive"
         const val FLAG_STATE_DIE = "die"
+        const val FLAG_ACTION_NEXT_SONG = "next_song"
+        const val FLAG_ACTION_PRE_SONG = "pre_song"
+        const val FLAG_ACTION_PAUSE = "notification_pause"
     }
+
+    private var mCountHandlerClick = 0
     private var mState = FLAG_STATE_ALIVE
     var stateMusic: String
         get() = mState
@@ -108,11 +120,40 @@ class MusicService : Service() {
         super.onCreate()
         mSong = Song()
         mMusic = MediaPlayer()
+        var intentFilter = IntentFilter()
+        intentFilter.addAction(FLAG_ACTION_NEXT_SONG)
+        intentFilter.addAction(FLAG_ACTION_PAUSE)
+        intentFilter.addAction(FLAG_ACTION_PRE_SONG)
+        registerReceiver(receiver, intentFilter)
+
     }
 
     private fun startNotification() {
         mNotificationForeground = NotificationForeground(this, mSong?.songName!!)
         startForeground(1, mNotificationForeground?.buildNotification())
+    }
+
+    private val receiver = object : BroadcastReceiver() {
+        @RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                FLAG_ACTION_PRE_SONG -> {
+                    preSong()
+                }
+                FLAG_ACTION_NEXT_SONG -> {
+                    nextSong()
+                }
+                FLAG_ACTION_PAUSE -> {
+                    pauseMusic()
+                    mCountHandlerClick++
+                    if (mCountHandlerClick % 2 == 1) {
+                        pauseMusic()
+                    } else {
+                        playMusicContinue()
+                    }
+                }
+            }
+        }
     }
 
     private fun sendInformationChangeSong() {
@@ -122,6 +163,28 @@ class MusicService : Service() {
             broadcastIntent.putExtra("STATUS", FLAG_CHANGE_SONG)
             sendBroadcast(broadcastIntent)
         }.start()
+    }
+
+    fun nextSong() {
+        if (this.positionOfList == this.arrayListSong.size - 1) {
+            this.song = this.arrayListSong[0]
+            this.positionOfList = 0
+        } else {
+            this.song = this.arrayListSong[++this.positionOfList]
+        }
+        this.startMusicFirstTime(this.song, this.positionOfList)
+    }
+
+    fun preSong() {
+        if (this.positionOfList == 0) {
+            this.song =
+                this.arrayListSong[this.arrayListSong.size - 1]
+            this.positionOfList = this.arrayListSong.size - 1
+        } else {
+            this.song = this.arrayListSong[--this.positionOfList]
+
+        }
+        this.startMusicFirstTime(this.song, this.positionOfList)
     }
 
     fun startMusicFirstTime(song: Song, positionOfList: Int) {
@@ -186,9 +249,11 @@ class MusicService : Service() {
             mIsPlaying = false
         }
     }
+
     fun stopService() {
         stopForeground(true)
     }
+
     fun pauseMusic() {
         if (mState == FLAG_STATE_ALIVE) {
             mMusic?.pause()
@@ -204,23 +269,23 @@ class MusicService : Service() {
     }
 
     fun playMusicContinue() {
-       if (mState == FLAG_STATE_ALIVE) {
-           mIsPlaying = true
-           if (mIsEndMusic) {
-               mIsEndMusic = false
-               mSongCurrentPosition = 0
-           }
-           mMusic?.seekTo(mSongCurrentPosition)
-           mMusic?.start()
-           mIsPlaying = true
-       } else {
-           Thread {
-               val broadcastIntent = Intent()
-               broadcastIntent.action = MainActivity.mBroadcastAction
-               broadcastIntent.putExtra("STATUS", FLAG_CAN_NOT_PLAY_MUSIC)
-               sendBroadcast(broadcastIntent)
-           }.start()
-       }
+        if (mState == FLAG_STATE_ALIVE) {
+            mIsPlaying = true
+            if (mIsEndMusic) {
+                mIsEndMusic = false
+                mSongCurrentPosition = 0
+            }
+            mMusic?.seekTo(mSongCurrentPosition)
+            mMusic?.start()
+            mIsPlaying = true
+        } else {
+            Thread {
+                val broadcastIntent = Intent()
+                broadcastIntent.action = MainActivity.mBroadcastAction
+                broadcastIntent.putExtra("STATUS", FLAG_CAN_NOT_PLAY_MUSIC)
+                sendBroadcast(broadcastIntent)
+            }.start()
+        }
         Thread {
             val broadcastIntent = Intent()
             broadcastIntent.action = MainActivity.mBroadcastAction
@@ -254,4 +319,10 @@ class MusicService : Service() {
         }
         return START_REDELIVER_INTENT
     }
+
+    override fun onDestroy() {
+        unregisterReceiver(receiver)
+        super.onDestroy()
+    }
+
 }

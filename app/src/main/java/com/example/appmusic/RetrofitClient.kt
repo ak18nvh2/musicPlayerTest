@@ -15,7 +15,7 @@ object RetrofitClient {
         request = request.newBuilder()
             .addHeader("Accept","application/json")
             .addHeader("Content-type","application/json")
-            .addHeader("Authorization","Bearer BQDj1MkTIeSkBoYqTpcOG4A0pq3dz708iWDjgbyQxCNH9FKMZZimkmpYxCdHdUthADYnFnwrktniZYy7HClUwe8zA9LURBIQPlpNXRyfrvGLuqSYRnpI7o3Rt7QTOlLmND63CFFto96kq41WI5hofrz37pNTOQwxBcBpp2bFvFVPpN9C8ML5Ko8rJahyhEebP36fDtD7D1tGJTtXnwsycw")
+            .addHeader("Authorization","Bearer BQCIuInNGrnTZPZ7yMPR3wHtbmJl3NRTTyGEe4y18JIg-B6v4nNqA9o0dsZhhDNu9EBtMuud5m65Fej14NAuFTuuee9H128bXX5y_IXLOiwiUc128Co2qme2MlU-p2i6EkoIWnRGW5ChHcXrIEezGcs4IBhL10xW9bxGyP6m4768RLB7dNb1PxQjWrdoivzs112DVS3o0qzop5T710GPVQ")
             .build()
         chain.proceed(request)
     }

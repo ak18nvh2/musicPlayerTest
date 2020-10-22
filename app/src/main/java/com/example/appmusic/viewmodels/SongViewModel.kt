@@ -20,21 +20,45 @@ class SongViewModel : ViewModel() {
     var currentProcess: MutableLiveData<Int> = MutableLiveData()
     var notification: MutableLiveData<String> = MutableLiveData()
     var listSong: MutableLiveData<List<Song>> = MutableLiveData()
+    var isTurnOff: MutableLiveData<Int> = MutableLiveData()
     private var isPlaying = false
     lateinit var countDownTimer: CountDownTimer
-
+    lateinit var countDownTimerAlarm: CountDownTimer
+    private var countTimeTurnOnAlarm = 0
+    private var mIsCountTurnOf = false
     private fun changeEpisodeToSong(e: Episodes): Song {
         val song = Song()
         song.songName = e.name
         song.songLocation = e.audio_preview_url
         return song
     }
+
     fun changeTimeFromIntToString(time: Int): String {
         val min = time / 60000
         val sec = (time / 1000) % 60
         val secString = if (sec < 10) "0$sec" else "$sec"
         val minString = if (min < 10) "0$min:" else "$min:"
         return minString + secString
+    }
+
+    fun countDownTime(time: Int) {
+        countTimeTurnOnAlarm++
+        if (mIsCountTurnOf) {
+            countDownTimerAlarm.cancel()
+        } else {
+            mIsCountTurnOf = true
+        }
+        countDownTimerAlarm = object : CountDownTimer(time * 60000L, 1000L) {
+            override fun onFinish() {
+                isTurnOff.value = countTimeTurnOnAlarm
+            }
+
+            override fun onTick(p0: Long) {
+                Log.d("timee", p0.toString())
+            }
+
+        }
+        countDownTimerAlarm.start()
     }
 
     fun runASong(songLen: Int, positionCurrent: Int, isPlay: Boolean, songName: String) {
@@ -54,27 +78,32 @@ class SongViewModel : ViewModel() {
                 var count = 0
                 isPlaying = true
                 countDownTimer =
-                    object : CountDownTimer((songLen - positionCurrent*1000).toLong(), 1000L) {
+                    object : CountDownTimer((songLen - positionCurrent * 1000).toLong(), 1000L) {
                         override fun onFinish() {
                             currentLength.value = changeTimeFromIntToString(songLen)
                             currentProcess.value = songLen
-                            Log.d("muusic", songName+currentLength.value)
+                            Log.d("muusic", songName + currentLength.value)
                         }
+
                         override fun onTick(p0: Long) {
                             currentProcess.value = ++count + positionCurrent
-                            val curLengthString = changeTimeFromIntToString(count*1000 + positionCurrent*1000)
+                            val curLengthString =
+                                changeTimeFromIntToString(count * 1000 + positionCurrent * 1000)
                             if (curLengthString > changeTimeFromIntToString(songLen)) {
                                 currentLength.value = changeTimeFromIntToString(songLen)
                             } else {
                                 currentLength.value = curLengthString
                             }
-                            Log.d("muusic", songName+currentLength.value+" pos"+positionCurrent)
+                            Log.d(
+                                "muusic",
+                                songName + currentLength.value + " pos" + positionCurrent
+                            )
 
                         }
                     }.start()
 
             } else {
-                currentLength.value = changeTimeFromIntToString(positionCurrent*1000)
+                currentLength.value = changeTimeFromIntToString(positionCurrent * 1000)
                 currentProcess.value = positionCurrent
                 if (isPlaying) {
                     isPlaying = false
@@ -86,7 +115,7 @@ class SongViewModel : ViewModel() {
     }
 
     fun getAllEpisodes(callGet: Call<FileJson>) {
-        callGet.enqueue(object: Callback<FileJson> {
+        callGet.enqueue(object : Callback<FileJson> {
             override fun onFailure(call: Call<FileJson>, t: Throwable) {
                 if (callGet.isCanceled) {
                     notification.value = "Canceled successful!"
@@ -98,7 +127,7 @@ class SongViewModel : ViewModel() {
             override fun onResponse(call: Call<FileJson>, response: Response<FileJson>) {
                 if (response.isSuccessful) {
                     val mListEpisodes = response.body()?.episodes
-                    var mArrayListSong : ArrayList<Song> = ArrayList()
+                    var mArrayListSong: ArrayList<Song> = ArrayList()
                     mListEpisodes?.forEachIndexed { _, episodes ->
                         mArrayListSong.add(changeEpisodeToSong(episodes))
                     }

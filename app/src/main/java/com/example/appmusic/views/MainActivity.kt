@@ -29,6 +29,8 @@ import com.example.appmusic.models.Song
 import com.example.appmusic.viewmodels.SongViewModel
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.dialog_processbar.*
+import kotlinx.android.synthetic.main.input_dialog.*
+import java.lang.NumberFormatException
 
 
 class MainActivity : AppCompatActivity(),
@@ -53,6 +55,7 @@ class MainActivity : AppCompatActivity(),
     private var mListEpisodes: ArrayList<Episodes>? = null
     private var checkClear = 0
     private lateinit var dialogProcessLoad: MaterialDialog
+    private lateinit var dialogInputTime: MaterialDialog
     private val connection = object : ServiceConnection {
         override fun onServiceDisconnected(p0: ComponentName?) {
             mBound = false
@@ -66,7 +69,7 @@ class MainActivity : AppCompatActivity(),
     }
 
     companion object {
-        const val mBroadcastAction = "SEND_SONG_SIZE"
+        const val mBroadcastAction = "Music_Broadcast"
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -80,6 +83,8 @@ class MainActivity : AppCompatActivity(),
     private fun init() {
         dialogProcessLoad = MaterialDialog(this).noAutoDismiss()
             .customView(R.layout.dialog_processbar)
+        dialogInputTime = MaterialDialog(this).noAutoDismiss()
+            .customView(R.layout.input_dialog)
         layout_Child.setBackgroundColor(Color.WHITE)
         mListEpisodes = ArrayList()
         mSongAdapter = SongAdapter(this, this)
@@ -92,6 +97,7 @@ class MainActivity : AppCompatActivity(),
         btn_randomMusic.setOnClickListener(this)
         btn_SelectLocalMusic.setOnClickListener(this)
         btn_SelectOnlineMusic.setOnClickListener(this)
+        btn_countDown.setOnClickListener(this)
         sb_SongHandler.min = 0
         setFocus(false)
         registerLiveDataListener()
@@ -129,8 +135,10 @@ class MainActivity : AppCompatActivity(),
             btn_PreSong.visibility = View.GONE
             tv_CurrentPosition.visibility = View.GONE
             tv_SongLength.visibility = View.GONE
+            btn_countDown.visibility = View.GONE
         } else {
             tv_SongTitle.setTextColor(Color.WHITE)
+            btn_countDown.visibility = View.VISIBLE
             btn_Handle.visibility = View.VISIBLE
             sb_SongHandler.visibility = View.VISIBLE
             btn_handleRepeat.visibility = View.VISIBLE
@@ -169,7 +177,6 @@ class MainActivity : AppCompatActivity(),
         bindService()
         ContextCompat.startForegroundService(this, Intent(this, MusicService::class.java))
     }
-
 
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -213,8 +220,12 @@ class MainActivity : AppCompatActivity(),
 
                     }
                     MusicService.FLAG_PLAY_CONTINUE -> {
-                        if( mMusicService.stateMusic == MusicService.FLAG_STATE_DIE) {
-                            Toast.makeText(applicationContext, "Can't play, please try agian!", Toast.LENGTH_SHORT).show()
+                        if (mMusicService.stateMusic == MusicService.FLAG_STATE_DIE) {
+                            Toast.makeText(
+                                applicationContext,
+                                "Can't play, please try agian!",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
                             mSongViewModel.runASong(
                                 mMusicService.music.duration,
@@ -246,7 +257,10 @@ class MainActivity : AppCompatActivity(),
                     }
                     MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
 
-                        mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
+                        mSongAdapter.setPositionChangeColor(
+                            mMusicService.positionOfList,
+                            mMusicService.song.songName
+                        )
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
                             mMusicService.music.currentPosition / 1000,
@@ -289,10 +303,17 @@ class MainActivity : AppCompatActivity(),
                         }
                     }
                     MusicService.FLAG_CHANGE_SONG -> {
-                        mSongAdapter.setPositionChangeColor(mMusicService.positionOfList,mMusicService.song.songName)
+                        mSongAdapter.setPositionChangeColor(
+                            mMusicService.positionOfList,
+                            mMusicService.song.songName
+                        )
                     }
                     MusicService.FLAG_CAN_NOT_PLAY_MUSIC -> {
-                        Toast.makeText(applicationContext, "Can't play, please try again!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            applicationContext,
+                            "Can't play, please try again!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         btn_Handle.setImageResource(R.drawable.play)
                         mCountHandleClick++
                     }
@@ -324,24 +345,10 @@ class MainActivity : AppCompatActivity(),
 
             }
             btn_NextSong -> {
-                if (mMusicService.positionOfList == mMusicService.arrayListSong.size - 1) {
-                    mMusicService.song = mMusicService.arrayListSong[0]
-                    mMusicService.positionOfList = 0
-                } else {
-                    mMusicService.song = mMusicService.arrayListSong[++mMusicService.positionOfList]
-                }
-                mMusicService.startMusicFirstTime(mMusicService.song, mMusicService.positionOfList)
+                mMusicService.nextSong()
             }
             btn_PreSong -> {
-                if (mMusicService.positionOfList == 0) {
-                    mMusicService.song =
-                        mMusicService.arrayListSong[mMusicService.arrayListSong.size - 1]
-                    mMusicService.positionOfList = mMusicService.arrayListSong.size - 1
-                } else {
-                    mMusicService.song = mMusicService.arrayListSong[--mMusicService.positionOfList]
-
-                }
-                mMusicService.startMusicFirstTime(mMusicService.song, mMusicService.positionOfList)
+                mMusicService.preSong()
             }
             btn_handleRepeat -> {
                 mCountHandleRepeat++
@@ -385,7 +392,7 @@ class MainActivity : AppCompatActivity(),
                 setFocus(false)
                 getMusic()
                 layout_Child.setBackgroundColor(Color.WHITE)
-                mSongAdapter.setPositionChangeColor(-1,"")
+                mSongAdapter.setPositionChangeColor(-1, "")
                 checkClear = 1
                 mMusicService.stopService()
                 btn_SelectLocalMusic.setTextColor(Color.RED)
@@ -400,7 +407,7 @@ class MainActivity : AppCompatActivity(),
                 mMusicService.pauseMusic()
                 setFocus(false)
                 layout_Child.setBackgroundColor(Color.WHITE)
-                mSongAdapter.setPositionChangeColor(-1,"")
+                mSongAdapter.setPositionChangeColor(-1, "")
                 checkClear = 1
                 mMusicService.stopService()
                 btn_SelectOnlineMusic.setTextColor(Color.RED)
@@ -408,8 +415,25 @@ class MainActivity : AppCompatActivity(),
                 getMusicOnline()
                 mMusicService.typeMusic =
                     MusicService.FLAG_ONLINE_MUSIC
+            }
+            btn_countDown -> {
+                dialogInputTime.setCancelable(false)
+                dialogInputTime.btn_cancel.setOnClickListener {
+                    dialogInputTime.dismiss()
+                }
+                dialogInputTime.btn_Accept.setOnClickListener {
 
-
+                    try {
+                        mSongViewModel.countDownTime(dialogInputTime.edt_inputTime.text.toString().toInt())
+                        Toast.makeText(applicationContext, "Dừng phát nhạc sau "+ dialogInputTime.edt_inputTime.text+" phút!", Toast.LENGTH_SHORT).show()
+                        dialogInputTime.dismiss()
+                        btn_countDown.setImageResource(R.drawable.ic_baseline_access_alarms_24)
+                    } catch (e:NumberFormatException) {
+                        Toast.makeText(applicationContext, "Nhập lỗi, mời nhập lại!", Toast.LENGTH_SHORT).show()
+                        dialogInputTime.edt_inputTime.text.clear()
+                    }
+                }
+                dialogInputTime.show()
             }
         }
     }
@@ -424,7 +448,15 @@ class MainActivity : AppCompatActivity(),
         dialogProcessLoad.show()
         mSongViewModel.getAllEpisodes(callGet)
     }
+
     private fun registerLiveDataListener() {
+        val countDownObserver = Observer<Int> {
+            mMusicService.pauseMusic()
+            btn_Handle.setImageResource(R.drawable.play)
+            mCountHandleClick++
+            btn_countDown.setImageResource(R.drawable.ic_baseline_access_alarms_turn_off)
+        }
+        mSongViewModel.isTurnOff.observe(this,countDownObserver)
         val songObserver = Observer<String> { currentLength ->
             tv_CurrentPosition.text = currentLength
         }
@@ -450,7 +482,7 @@ class MainActivity : AppCompatActivity(),
             mArrayListSong = newList as ArrayList<Song>
             mSongAdapter.setList(mArrayListSong)
         }
-            mSongViewModel.listSong.observe(this, fJsonObserver)
+        mSongViewModel.listSong.observe(this, fJsonObserver)
 
         val notificationObserver = Observer<String> {
             dialogProcessLoad.dismiss()
@@ -530,8 +562,12 @@ class MainActivity : AppCompatActivity(),
                 mBound = false
             }
 
-            stopService(Intent(applicationContext,
-                MusicService::class.java))
+            stopService(
+                Intent(
+                    applicationContext,
+                    MusicService::class.java
+                )
+            )
         }
         super.onDestroy()
     }
