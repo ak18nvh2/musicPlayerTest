@@ -45,13 +45,9 @@ class MainActivity : AppCompatActivity(),
     private var mSongViewModel = SongViewModel()
     private var mIsFirstStart = false
     private var mCountHandleRepeat = 0
-    private lateinit var mMusicService: MusicService
     private var mBound = false
     private lateinit var mBinder: MusicService.LocalBinder
-    private var mSong = Song()
     private var mArrayListSong = ArrayList<Song>()
-    private var mCurrentPositionOfList = 0
-    private var mCurrentPositionOfSong = 0
     private var mListEpisodes: ArrayList<Episodes>? = null
     private var checkClear = 0
     private lateinit var dialogProcessLoad: MaterialDialog
@@ -70,6 +66,7 @@ class MainActivity : AppCompatActivity(),
 
     companion object {
         const val mBroadcastAction = "Music_Broadcast"
+        lateinit var mMusicService: MusicService
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -206,6 +203,7 @@ class MainActivity : AppCompatActivity(),
                         playFirstTime()
                     }
                     MusicService.FLAG_PAUSE -> {
+                        btn_Handle.setImageResource(R.drawable.play)
                         if (checkClear == 1) {
                             tv_SongTitle.text = "Chưa phát bài hát nào"
                             checkClear = 0
@@ -220,6 +218,7 @@ class MainActivity : AppCompatActivity(),
 
                     }
                     MusicService.FLAG_PLAY_CONTINUE -> {
+                        btn_Handle.setImageResource(R.drawable.pause)
                         if (mMusicService.stateMusic == MusicService.FLAG_STATE_DIE) {
                             Toast.makeText(
                                 applicationContext,
@@ -264,19 +263,19 @@ class MainActivity : AppCompatActivity(),
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
                             mMusicService.music.currentPosition / 1000,
-                            true,
+                            mMusicService.isPlaying,
                             mMusicService.song.songName
                         )
                         setFocus(true)
                         mIsFirstStart = true
                         layout_Child.setBackgroundColor(Color.rgb(255, 102, 153))
                         if (mMusicService.isPlaying) {
+                            mCountHandleClick = 0
                             btn_Handle.setImageResource(R.drawable.pause)
                         } else {
                             mCountHandleClick = 1
                             btn_Handle.setImageResource(R.drawable.play)
                         }
-                        mCountHandleClick = 0
                         sb_SongHandler.max =
                             (mMusicService.music.duration / 60000) * 60 + (mMusicService.music.duration / 1000) % 60
                         if (mMusicService.randomState == MusicService.FLAG_RANDOM_MUSIC) {
@@ -330,12 +329,11 @@ class MainActivity : AppCompatActivity(),
                 if (mIsFirstStart) {
                     mCountHandleClick++
                     if (mCountHandleClick % 2 == 1) {
-                        btn_Handle.setImageResource(R.drawable.play)
                         if (mBound) {
                             mMusicService.pauseMusic()
+                            mMusicService.typePause = MusicService.FLAG_PAUSE_IN_APP
                         }
                     } else {
-                        btn_Handle.setImageResource(R.drawable.pause)
                         if (mBound) {
                             mMusicService.playMusicContinue()
                         }
@@ -436,9 +434,7 @@ class MainActivity : AppCompatActivity(),
                 dialogInputTime.show()
             }
         }
-    }
-
-    private fun getMusicOnline() {
+    }private fun getMusicOnline() {
         val callGet = RetrofitClient.instance.getContacts()
         dialogProcessLoad.setCancelable(false)
         dialogProcessLoad.btn_CancelUpdate.setOnClickListener() {
@@ -448,11 +444,9 @@ class MainActivity : AppCompatActivity(),
         dialogProcessLoad.show()
         mSongViewModel.getAllEpisodes(callGet)
     }
-
     private fun registerLiveDataListener() {
         val countDownObserver = Observer<Int> {
             mMusicService.pauseMusic()
-            btn_Handle.setImageResource(R.drawable.play)
             mCountHandleClick++
             btn_countDown.setImageResource(R.drawable.ic_baseline_access_alarms_turn_off)
         }
@@ -490,7 +484,6 @@ class MainActivity : AppCompatActivity(),
         }
         mSongViewModel.notification.observe(this, notificationObserver)
     }
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -510,10 +503,8 @@ class MainActivity : AppCompatActivity(),
             }
         }
     }
-
     private fun getMusic() {
         val arr = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -541,7 +532,6 @@ class MainActivity : AppCompatActivity(),
         }
 
     }
-
     @SuppressLint("ResourceAsColor")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onSongNameClick(song: Song, position: Int) {
@@ -552,8 +542,6 @@ class MainActivity : AppCompatActivity(),
             mMusicService.startMusicFirstTime(song, position)
         }
     }
-
-
     override fun onDestroy() {
         if (!mMusicService.isPlaying) {
             if (mBound) {

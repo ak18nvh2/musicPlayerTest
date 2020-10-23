@@ -13,17 +13,13 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.appmusic.views.MainActivity
 
-class NotificationForeground(context: Context, mess: String) {
+class NotificationForeground(context: Context, mess: String, service: MusicService) {
     private val mContext: Context = context
     private val mMessage = mess
-    private var mCountHandleClick = 0
+    private val mMusicService = service
+
     fun buildNotification(): Notification {
         createNotificationChannel()
-        val pendingIntent: PendingIntent = PendingIntent.getActivity(
-            mContext, 0,
-            Intent(mContext, MusicService::class.java)
-                .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0
-        )
         val resultIntent = Intent(mContext, MainActivity::class.java)
         resultIntent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         val resultPendingIntent =
@@ -36,7 +32,6 @@ class NotificationForeground(context: Context, mess: String) {
 
         val builder: NotificationCompat.Builder =
             NotificationCompat.Builder(mContext, CHANNEL_ID)
-                .setContentIntent(pendingIntent)
                 .setSmallIcon(R.drawable.ic_launcher_background)
                 .setContentText(mMessage)
                 .setColor(Color.BLUE)
@@ -63,8 +58,7 @@ class NotificationForeground(context: Context, mess: String) {
         val icon: Int = when (action) {
             MusicService.FLAG_ACTION_NEXT_SONG -> R.drawable.ic_baseline_skip_next_24
             MusicService.FLAG_ACTION_PAUSE -> {
-                mCountHandleClick++
-                if (mCountHandleClick % 2 == 1) {
+                if (mMusicService.isPlaying) {
                     R.drawable.ic_baseline_pause_circle_outline_24
                 } else {
                     R.drawable.ic_baseline_play_arrow_24

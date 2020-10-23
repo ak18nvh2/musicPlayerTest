@@ -39,8 +39,17 @@ class MusicService : Service() {
         const val FLAG_ACTION_NEXT_SONG = "next_song"
         const val FLAG_ACTION_PRE_SONG = "pre_song"
         const val FLAG_ACTION_PAUSE = "notification_pause"
+        const val FLAG_PAUSE_IN_APP ="pause_in_app"
+        const val FLAG_PAUSE_IN_NOTIFICATION ="pause_in_notification"
     }
 
+
+    private var mTypePause = ""
+    var typePause: String
+    get() = mTypePause
+    set(value) {
+        mTypePause = value
+    }
     private var mCountHandlerClick = 0
     private var mState = FLAG_STATE_ALIVE
     var stateMusic: String
@@ -129,7 +138,7 @@ class MusicService : Service() {
     }
 
     private fun startNotification() {
-        mNotificationForeground = NotificationForeground(this, mSong?.songName!!)
+        mNotificationForeground = NotificationForeground(this, mSong?.songName!!, MainActivity.mMusicService)
         startForeground(1, mNotificationForeground?.buildNotification())
     }
 
@@ -144,6 +153,7 @@ class MusicService : Service() {
                     nextSong()
                 }
                 FLAG_ACTION_PAUSE -> {
+                    mTypePause = FLAG_PAUSE_IN_NOTIFICATION
                     pauseMusic()
                     mCountHandlerClick++
                     if (mCountHandlerClick % 2 == 1) {
@@ -309,7 +319,7 @@ class MusicService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (mIsPlaying) {
+        if (mIsPlaying || mTypePause == FLAG_PAUSE_IN_NOTIFICATION) {
             Thread {
                 val broadcastIntent = Intent()
                 broadcastIntent.action = MainActivity.mBroadcastAction
