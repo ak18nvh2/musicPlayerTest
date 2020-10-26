@@ -10,8 +10,6 @@ import android.net.Uri
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.example.appmusic.models.Song
 import com.example.appmusic.views.MainActivity
@@ -39,17 +37,17 @@ class MusicService : Service() {
         const val FLAG_ACTION_NEXT_SONG = "next_song"
         const val FLAG_ACTION_PRE_SONG = "pre_song"
         const val FLAG_ACTION_PAUSE = "notification_pause"
-        const val FLAG_PAUSE_IN_APP ="pause_in_app"
-        const val FLAG_PAUSE_IN_NOTIFICATION ="pause_in_notification"
+        const val FLAG_PAUSE_IN_APP = "pause_in_app"
+        const val FLAG_PAUSE_IN_NOTIFICATION = "pause_in_notification"
     }
 
 
     private var mTypePause = ""
     var typePause: String
-    get() = mTypePause
-    set(value) {
-        mTypePause = value
-    }
+        get() = mTypePause
+        set(value) {
+            mTypePause = value
+        }
     private var mCountHandlerClick = 0
     private var mState = FLAG_STATE_ALIVE
     var stateMusic: String
@@ -106,11 +104,11 @@ class MusicService : Service() {
             mRandomState = value
         }
 
-    private var mArrayListSong: ArrayList<Song>? = ArrayList()
+    private var mArrayListSongOffline: ArrayList<Song>? = ArrayList()
     var arrayListSong: ArrayList<Song>
-        get() = mArrayListSong!!
+        get() = mArrayListSongOffline!!
         set(value) {
-            mArrayListSong = value
+            mArrayListSongOffline = value
         }
 
     private var mIsEndMusic = false
@@ -129,7 +127,7 @@ class MusicService : Service() {
         super.onCreate()
         mSong = Song()
         mMusic = MediaPlayer()
-        var intentFilter = IntentFilter()
+        val intentFilter = IntentFilter()
         intentFilter.addAction(FLAG_ACTION_NEXT_SONG)
         intentFilter.addAction(FLAG_ACTION_PAUSE)
         intentFilter.addAction(FLAG_ACTION_PRE_SONG)
@@ -138,7 +136,8 @@ class MusicService : Service() {
     }
 
     private fun startNotification() {
-        mNotificationForeground = NotificationForeground(this, mSong?.songName!!, MainActivity.mMusicService)
+        mNotificationForeground =
+            NotificationForeground(this, mSong?.songName!!, MainActivity.mMusicService)
         startForeground(1, mNotificationForeground?.buildNotification())
     }
 
@@ -222,15 +221,15 @@ class MusicService : Service() {
                 }
                 FLAG_REPEAT_ALL -> {
                     if (mRandomState == FLAG_NO_RANDOM_MUSIC) {
-                        if (mPositionOfList + 1 == mArrayListSong?.size) {
+                        if (mPositionOfList + 1 == mArrayListSongOffline?.size) {
                             mPositionOfList = 0
                         } else {
                             mPositionOfList++
                         }
                     } else {
-                        mPositionOfList = Random.nextInt(0, mArrayListSong?.size!! - 1)
+                        mPositionOfList = Random.nextInt(0, mArrayListSongOffline?.size!! - 1)
                     }
-                    mSong = mArrayListSong!![mPositionOfList]
+                    mSong = mArrayListSongOffline!![mPositionOfList]
                     startMusicFirstTime(mSong!!, mPositionOfList)
                 }
             }

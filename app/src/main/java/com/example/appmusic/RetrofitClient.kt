@@ -9,13 +9,15 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
     private const val BASE_URL = "https://api.spotify.com/v1/"
-    private  val logger = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY)
+    private val logger = HttpLoggingInterceptor().setLevel(HttpLoggingInterceptor.Level.BODY)
+    private const val token =
+        "BQBaPk7ieyAooF0k_FH9zDyE8m6UUrOVEE6xmdqvVJFjVZSLsKiTA3-tcAycrkrBC0O0MfIx7czf49u-D3rAlm4EnGRLKfwgoXqVVNV6KqtS9VDygwW_5f31mCN-eA0s1n6uW1jctsZt0ylgUTVB2_cHQyHkTYjbUfxu_yilvxDta2Fj44a0RC7NCRAmNJ8yt_Hi1c9A7OkZe04WSDwroQ"
     private val headerInterceptor = Interceptor { chain ->
         var request = chain.request()
         request = request.newBuilder()
-            .addHeader("Accept","application/json")
-            .addHeader("Content-type","application/json")
-            .addHeader("Authorization","Bearer BQCIuInNGrnTZPZ7yMPR3wHtbmJl3NRTTyGEe4y18JIg-B6v4nNqA9o0dsZhhDNu9EBtMuud5m65Fej14NAuFTuuee9H128bXX5y_IXLOiwiUc128Co2qme2MlU-p2i6EkoIWnRGW5ChHcXrIEezGcs4IBhL10xW9bxGyP6m4768RLB7dNb1PxQjWrdoivzs112DVS3o0qzop5T710GPVQ")
+            .addHeader("Accept", "application/json")
+            .addHeader("Content-type", "application/json")
+            .addHeader("Authorization", "Bearer $token")
             .build()
         chain.proceed(request)
     }
@@ -28,7 +30,7 @@ object RetrofitClient {
         .addInterceptor(headerInterceptor)
         .addInterceptor(logger)
         .build()
-    val instance : Api by lazy {
+    val instance: Api by lazy {
         val retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(builder)

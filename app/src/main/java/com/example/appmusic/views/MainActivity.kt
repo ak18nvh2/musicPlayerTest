@@ -11,7 +11,6 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.IBinder
 import android.provider.MediaStore
-import android.util.Log
 import android.view.View
 import android.widget.SeekBar
 import android.widget.Toast
@@ -37,6 +36,7 @@ class MainActivity : AppCompatActivity(),
     SongAdapter.IRecyclerViewWithActivity,
     View.OnClickListener {
 
+    private var mTypeMusic: String? = ""
     private lateinit var mSongAdapter: SongAdapter
     private val PERMISSION_REQUEST = 1
     private var mCountHandleClick = 0
@@ -222,7 +222,7 @@ class MainActivity : AppCompatActivity(),
                         if (mMusicService.stateMusic == MusicService.FLAG_STATE_DIE) {
                             Toast.makeText(
                                 applicationContext,
-                                "Can't play, please try agian!",
+                                "Can't play, please try again!",
                                 Toast.LENGTH_SHORT
                             ).show()
                         } else {
@@ -245,7 +245,6 @@ class MainActivity : AppCompatActivity(),
                     }
                     MusicService.FLAG_NO_REPEAT -> {
                         mCountHandleClick++
-                        Log.d("TAGGF", mCountHandleClick.toString())
                         btn_Handle.setImageResource(R.drawable.play)
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
@@ -255,10 +254,8 @@ class MainActivity : AppCompatActivity(),
                         )
                     }
                     MusicService.FLAG_PLAY_WHEN_START_APP_AGAIN -> {
-
                         mSongAdapter.setPositionChangeColor(
-                            mMusicService.positionOfList,
-                            mMusicService.song.songName
+                            mMusicService.positionOfList
                         )
                         mSongViewModel.runASong(
                             mMusicService.music.duration,
@@ -303,8 +300,7 @@ class MainActivity : AppCompatActivity(),
                     }
                     MusicService.FLAG_CHANGE_SONG -> {
                         mSongAdapter.setPositionChangeColor(
-                            mMusicService.positionOfList,
-                            mMusicService.song.songName
+                            mMusicService.positionOfList
                         )
                     }
                     MusicService.FLAG_CAN_NOT_PLAY_MUSIC -> {
@@ -338,7 +334,6 @@ class MainActivity : AppCompatActivity(),
                             mMusicService.playMusicContinue()
                         }
                     }
-                    Log.d("TAGG", mCountHandleClick.toString())
                 }
 
             }
@@ -384,35 +379,22 @@ class MainActivity : AppCompatActivity(),
                 }
             }
             btn_SelectLocalMusic -> {
-                mArrayListSong.clear()
-                mSongAdapter.setList(mArrayListSong)
-                mMusicService.pauseMusic()
-                setFocus(false)
+                this.mTypeMusic =
+                    MusicService.FLAG_LOCAL_MUSIC
+                rv_ListSong.visibility = View.GONE
                 getMusic()
-                layout_Child.setBackgroundColor(Color.WHITE)
-                mSongAdapter.setPositionChangeColor(-1, "")
-                checkClear = 1
-                mMusicService.stopService()
                 btn_SelectLocalMusic.setTextColor(Color.RED)
                 btn_SelectOnlineMusic.setTextColor(Color.WHITE)
-                mMusicService.typeMusic =
-                    MusicService.FLAG_LOCAL_MUSIC
 
             }
             btn_SelectOnlineMusic -> {
-                mArrayListSong.clear()
-                mSongAdapter.setList(mArrayListSong)
-                mMusicService.pauseMusic()
-                setFocus(false)
-                layout_Child.setBackgroundColor(Color.WHITE)
-                mSongAdapter.setPositionChangeColor(-1, "")
-                checkClear = 1
-                mMusicService.stopService()
+                this.mTypeMusic =
+                    MusicService.FLAG_ONLINE_MUSIC
+                rv_ListSong.visibility = View.GONE
                 btn_SelectOnlineMusic.setTextColor(Color.RED)
                 btn_SelectLocalMusic.setTextColor(Color.WHITE)
                 getMusicOnline()
-                mMusicService.typeMusic =
-                    MusicService.FLAG_ONLINE_MUSIC
+
             }
             btn_countDown -> {
                 dialogInputTime.setCancelable(false)
@@ -422,19 +404,31 @@ class MainActivity : AppCompatActivity(),
                 dialogInputTime.btn_Accept.setOnClickListener {
 
                     try {
-                        mSongViewModel.countDownTime(dialogInputTime.edt_inputTime.text.toString().toInt())
-                        Toast.makeText(applicationContext, "Dừng phát nhạc sau "+ dialogInputTime.edt_inputTime.text+" phút!", Toast.LENGTH_SHORT).show()
+                        mSongViewModel.countDownTime(
+                            dialogInputTime.edt_inputTime.text.toString().toInt()
+                        )
+                        Toast.makeText(
+                            applicationContext,
+                            "Dừng phát nhạc sau " + dialogInputTime.edt_inputTime.text + " phút!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         dialogInputTime.dismiss()
                         btn_countDown.setImageResource(R.drawable.ic_baseline_access_alarms_24)
-                    } catch (e:NumberFormatException) {
-                        Toast.makeText(applicationContext, "Nhập lỗi, mời nhập lại!", Toast.LENGTH_SHORT).show()
+                    } catch (e: NumberFormatException) {
+                        Toast.makeText(
+                            applicationContext,
+                            "Nhập lỗi, mời nhập lại!",
+                            Toast.LENGTH_SHORT
+                        ).show()
                         dialogInputTime.edt_inputTime.text.clear()
                     }
                 }
                 dialogInputTime.show()
             }
         }
-    }private fun getMusicOnline() {
+    }
+
+    private fun getMusicOnline() {
         val callGet = RetrofitClient.instance.getContacts()
         dialogProcessLoad.setCancelable(false)
         dialogProcessLoad.btn_CancelUpdate.setOnClickListener() {
@@ -444,13 +438,15 @@ class MainActivity : AppCompatActivity(),
         dialogProcessLoad.show()
         mSongViewModel.getAllEpisodes(callGet)
     }
+
     private fun registerLiveDataListener() {
         val countDownObserver = Observer<Int> {
             mMusicService.pauseMusic()
             mCountHandleClick++
             btn_countDown.setImageResource(R.drawable.ic_baseline_access_alarms_turn_off)
         }
-        mSongViewModel.isTurnOff.observe(this,countDownObserver)
+        mSongViewModel.isTurnOff.observe(this, countDownObserver)
+
         val songObserver = Observer<String> { currentLength ->
             tv_CurrentPosition.text = currentLength
         }
@@ -472,8 +468,10 @@ class MainActivity : AppCompatActivity(),
         mSongViewModel.currentProcess.observe(this, currentProcessObserver)
 
         val fJsonObserver = Observer<List<Song>> { newList ->
-
             mArrayListSong = newList as ArrayList<Song>
+            rv_ListSong.visibility = View.VISIBLE
+            mSongAdapter.setTypeListSongDisplay(MusicService.FLAG_ONLINE_MUSIC)
+            mTypeMusic = MusicService.FLAG_ONLINE_MUSIC
             mSongAdapter.setList(mArrayListSong)
         }
         mSongViewModel.listSong.observe(this, fJsonObserver)
@@ -484,6 +482,7 @@ class MainActivity : AppCompatActivity(),
         }
         mSongViewModel.notification.observe(this, notificationObserver)
     }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -503,8 +502,10 @@ class MainActivity : AppCompatActivity(),
             }
         }
     }
+
     private fun getMusic() {
         val arr = arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        val arrayListSong = ArrayList<Song>()
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.READ_EXTERNAL_STORAGE
@@ -512,7 +513,6 @@ class MainActivity : AppCompatActivity(),
         ) {
             ActivityCompat.requestPermissions(this, arr, PERMISSION_REQUEST)
         } else {
-            mArrayListSong.clear()
             val contentResolver = contentResolver
             val songUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
             val songCursor = contentResolver.query(songUri, null, null, null, null)
@@ -525,23 +525,30 @@ class MainActivity : AppCompatActivity(),
                     val song = Song()
                     song.songLocation = currentLocation
                     song.songName = currentName
-                    mArrayListSong.add(song)
+                    arrayListSong.add(song)
                 } while (songCursor.moveToNext())
             }
-            mSongAdapter.setList(mArrayListSong)
         }
-
+        rv_ListSong.visibility = View.VISIBLE
+        this.mTypeMusic = MusicService.FLAG_LOCAL_MUSIC
+        this.mSongAdapter.setTypeListSongDisplay(MusicService.FLAG_LOCAL_MUSIC)
+        mArrayListSong = arrayListSong
+        mSongAdapter.setList(mArrayListSong)
     }
+
     @SuppressLint("ResourceAsColor")
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onSongNameClick(song: Song, position: Int) {
         if (mBound) {
+            mSongAdapter.setTypeSongPlaying(this.mTypeMusic!!)
+            mMusicService.typeMusic = this.mTypeMusic!!
             mMusicService.arrayListSong = mArrayListSong
             mMusicService.positionOfList = position
             mMusicService.song = song
             mMusicService.startMusicFirstTime(song, position)
         }
     }
+
     override fun onDestroy() {
         if (!mMusicService.isPlaying) {
             if (mBound) {
